@@ -1,0 +1,426 @@
+<template>
+	<view class="page">
+		<view class="data-header">
+			<view class="header-status" :style="{ height: statusBarHeight + 'px' }"></view>
+			<view class="header-bar">
+				<text class="header-title">数据统计</text>
+			</view>
+			<!-- 时间筛选 -->
+			<view class="time-tabs">
+				<view
+					class="time-tab"
+					v-for="(tab, i) in timeTabs"
+					:key="i"
+					:class="{ active: activeTime === i }"
+					@click="activeTime = i"
+				>
+					<text>{{ tab }}</text>
+				</view>
+			</view>
+		</view>
+
+		<scroll-view scroll-y class="scroll-content">
+			<!-- 提问量趋势 -->
+			<view class="chart-section">
+				<text class="chart-title">提问量趋势</text>
+				<view class="chart-placeholder">
+					<view class="trend-bars">
+						<view
+							class="trend-bar"
+							v-for="(d, i) in trendData"
+							:key="i"
+							:style="{ height: d.height + '%' }"
+						>
+							<text class="bar-value">{{ d.value }}</text>
+						</view>
+					</view>
+					<view class="trend-labels">
+						<text v-for="(d, i) in trendData" :key="i">{{ d.label }}</text>
+					</view>
+				</view>
+			</view>
+
+			<!-- 问题分类占比 -->
+			<view class="chart-section">
+				<text class="chart-title">问题分类占比</text>
+				<view class="pie-list">
+					<view class="pie-item" v-for="(item, i) in categoryData" :key="i">
+						<view class="pie-color" :style="{ background: item.color }"></view>
+						<text class="pie-name">{{ item.name }}</text>
+						<view class="pie-bar">
+							<view class="pie-fill" :style="{ width: item.percent + '%', background: item.color }"></view>
+						</view>
+						<text class="pie-value">{{ item.percent }}%</text>
+					</view>
+				</view>
+			</view>
+
+			<!-- 各班使用排行 -->
+			<view class="chart-section">
+				<text class="chart-title">各班使用数据排行</text>
+				<view class="rank-list">
+					<view class="rank-item" v-for="(item, i) in rankData" :key="i">
+						<view class="rank-num" :class="{ 'top-3': i < 3 }">{{ i + 1 }}</view>
+						<text class="rank-name">{{ item.name }}</text>
+						<text class="rank-value">{{ item.count }}次</text>
+					</view>
+				</view>
+			</view>
+
+			<!-- 高频问题TOP -->
+			<view class="chart-section">
+				<text class="chart-title">高频问题TOP</text>
+				<view class="hot-list">
+					<view class="hot-item" v-for="(item, i) in hotQuestions" :key="i">
+						<text class="hot-rank">{{ i + 1 }}</text>
+						<text class="hot-question">{{ item.question }}</text>
+						<text class="hot-count">{{ item.count }}次</text>
+					</view>
+				</view>
+			</view>
+
+			<!-- 学生反馈汇总 -->
+			<view class="chart-section">
+				<text class="chart-title">学生反馈问题</text>
+				<view class="feedback-list">
+					<view class="feedback-item" v-for="(item, i) in feedbackList" :key="i" @click="viewFeedback(item)">
+						<text class="feedback-text">{{ item.content }}</text>
+						<text class="feedback-time">{{ item.time }}</text>
+					</view>
+				</view>
+			</view>
+
+			<view class="bottom-space"></view>
+		</scroll-view>
+
+		<custom-tabbar :current="3" :tabs="counselorTabs" @change="onTabChange" />
+	</view>
+</template>
+
+<script>
+import CustomTabbar from '@/common/components/custom-tabbar.vue'
+
+export default {
+	components: { CustomTabbar },
+	data() {
+		return {
+			statusBarHeight: 0,
+			activeTime: 0,
+			timeTabs: ['日', '周', '月'],
+			trendData: [
+				{ label: '周一', value: 45, height: 60 },
+				{ label: '周二', value: 62, height: 82 },
+				{ label: '周三', value: 38, height: 50 },
+				{ label: '周四', value: 75, height: 100 },
+				{ label: '周五', value: 55, height: 73 },
+				{ label: '周六', value: 28, height: 37 },
+				{ label: '周日', value: 20, height: 27 }
+			],
+			categoryData: [
+				{ name: '教务问题', percent: 35, color: '#4A90D9' },
+				{ name: '后勤服务', percent: 25, color: '#4CD964' },
+				{ name: '政策咨询', percent: 20, color: '#F0AD4E' },
+				{ name: '心理辅导', percent: 12, color: '#DD524D' },
+				{ name: '其他', percent: 8, color: '#9B59B6' }
+			],
+			rankData: [
+				{ name: '计算机2601', count: 156 },
+				{ name: '经管2601', count: 132 },
+				{ name: '计算机2602', count: 118 },
+				{ name: '外语2601', count: 96 },
+				{ name: '机械2601', count: 85 }
+			],
+			hotQuestions: [
+				{ question: '如何办理缓缴学费', count: 89 },
+				{ question: '宿舍报修流程', count: 76 },
+				{ question: '奖学金评选条件', count: 65 },
+				{ question: '选课系统使用', count: 52 },
+				{ question: '医保报销流程', count: 48 }
+			],
+			feedbackList: [
+				{ content: 'AI回答不够详细，希望补充更多细节', time: '05-20' },
+				{ content: '查不到图书馆的开放时间', time: '05-19' },
+				{ content: '转人工等待时间太长', time: '05-18' }
+			],
+			counselorTabs: [
+				{ text: '工作台', icon: '&#128200;', url: '/subpackages/counselor/pages/workspace/index' },
+				{ text: '知识库', icon: '&#128218;', url: '/subpackages/counselor/pages/knowledge/index' },
+				{ text: '工单', icon: '&#128196;', url: '/subpackages/counselor/pages/orders/index' },
+				{ text: '数据', icon: '&#128202;', url: '/subpackages/counselor/pages/data/index' },
+				{ text: '我的', icon: '&#128100;', url: '/subpackages/profile/pages/counselor/index' }
+			]
+		}
+	},
+	created() {
+		const sysInfo = uni.getSystemInfoSync()
+		this.statusBarHeight = sysInfo.statusBarHeight || 0
+	},
+	methods: {
+		viewFeedback(item) {
+			uni.showModal({
+				title: '反馈详情',
+				content: item.content,
+				showCancel: false
+			})
+		},
+		onTabChange({ item }) {
+			uni.reLaunch({ url: item.url })
+		}
+	}
+}
+</script>
+
+<style lang="scss" scoped>
+.page {
+	height: 100vh;
+	display: flex;
+	flex-direction: column;
+	background: #F5F6FA;
+}
+
+.data-header { background: #4A90D9; }
+.header-status { background: #4A90D9; }
+
+.header-bar {
+	height: 88rpx;
+	display: flex;
+	align-items: center;
+	padding: 0 32rpx;
+}
+
+.header-title {
+	font-size: 38rpx;
+	color: #FFF;
+	font-weight: 600;
+}
+
+.time-tabs {
+	display: flex;
+	padding: 0 24rpx 16rpx;
+}
+
+.time-tab {
+	flex: 1;
+	text-align: center;
+	height: 56rpx;
+	line-height: 56rpx;
+	font-size: 26rpx;
+	color: rgba(255, 255, 255, 0.7);
+	border-radius: 8rpx;
+	&.active {
+		background: rgba(255, 255, 255, 0.2);
+		color: #FFF;
+	}
+}
+
+.scroll-content {
+	flex: 1;
+	height: 0;
+	padding-bottom: 140rpx;
+}
+
+.chart-section {
+	margin: 24rpx;
+	background: #FFF;
+	border-radius: 16rpx;
+	padding: 24rpx;
+}
+
+.chart-title {
+	font-size: 30rpx;
+	font-weight: 600;
+	color: #333;
+	display: block;
+	margin-bottom: 24rpx;
+}
+
+.chart-placeholder {
+	margin-top: 16rpx;
+}
+
+.trend-bars {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-around;
+	height: 200rpx;
+	padding: 0 16rpx;
+}
+
+.trend-bar {
+	width: 48rpx;
+	background: linear-gradient(to top, #4A90D9, #6BA5E7);
+	border-radius: 8rpx 8rpx 0 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: flex-start;
+	padding-top: 8rpx;
+	min-height: 30rpx;
+}
+
+.bar-value {
+	font-size: 18rpx;
+	color: #FFF;
+}
+
+.trend-labels {
+	display: flex;
+	justify-content: space-around;
+	margin-top: 12rpx;
+	font-size: 20rpx;
+	color: #999;
+}
+
+.pie-list {
+	display: flex;
+	flex-direction: column;
+	gap: 16rpx;
+}
+
+.pie-item {
+	display: flex;
+	align-items: center;
+}
+
+.pie-color {
+	width: 16rpx;
+	height: 16rpx;
+	border-radius: 4rpx;
+	margin-right: 12rpx;
+	flex-shrink: 0;
+}
+
+.pie-name {
+	width: 140rpx;
+	font-size: 24rpx;
+	color: #666;
+	flex-shrink: 0;
+}
+
+.pie-bar {
+	flex: 1;
+	height: 16rpx;
+	background: #F5F6FA;
+	border-radius: 8rpx;
+	overflow: hidden;
+	margin-right: 12rpx;
+}
+
+.pie-fill {
+	height: 100%;
+	border-radius: 8rpx;
+	transition: width 0.5s;
+}
+
+.pie-value {
+	width: 60rpx;
+	text-align: right;
+	font-size: 24rpx;
+	color: #333;
+	flex-shrink: 0;
+}
+
+.rank-list {
+	display: flex;
+	flex-direction: column;
+}
+
+.rank-item {
+	display: flex;
+	align-items: center;
+	padding: 16rpx 0;
+	border-bottom: 1rpx solid #F5F5F5;
+	&:last-child { border-bottom: none; }
+}
+
+.rank-num {
+	width: 44rpx;
+	height: 44rpx;
+	border-radius: 50%;
+	background: #F5F6FA;
+	color: #999;
+	font-size: 22rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-right: 16rpx;
+	flex-shrink: 0;
+	&.top-3 {
+		background: #4A90D9;
+		color: #FFF;
+	}
+}
+
+.rank-name {
+	flex: 1;
+	font-size: 26rpx;
+	color: #333;
+}
+
+.rank-value {
+	font-size: 24rpx;
+	color: #999;
+}
+
+.hot-list {
+	display: flex;
+	flex-direction: column;
+}
+
+.hot-item {
+	display: flex;
+	align-items: center;
+	padding: 16rpx 0;
+	border-bottom: 1rpx solid #F5F5F5;
+	&:last-child { border-bottom: none; }
+}
+
+.hot-rank {
+	width: 44rpx;
+	font-size: 28rpx;
+	font-weight: 600;
+	color: #4A90D9;
+	margin-right: 16rpx;
+	flex-shrink: 0;
+}
+
+.hot-question {
+	flex: 1;
+	font-size: 26rpx;
+	color: #333;
+}
+
+.hot-count {
+	font-size: 24rpx;
+	color: #999;
+}
+
+.feedback-list {
+	display: flex;
+	flex-direction: column;
+}
+
+.feedback-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 16rpx 0;
+	border-bottom: 1rpx solid #F5F5F5;
+	&:last-child { border-bottom: none; }
+}
+
+.feedback-text {
+	flex: 1;
+	font-size: 26rpx;
+	color: #333;
+	margin-right: 16rpx;
+}
+
+.feedback-time {
+	font-size: 22rpx;
+	color: #999;
+	flex-shrink: 0;
+}
+
+.bottom-space { height: 40rpx; }
+</style>

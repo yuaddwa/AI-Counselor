@@ -1,0 +1,112 @@
+/* 自定义全局样式变量 */
+/* uni-app 内置变量覆盖 */
+.page.data-v-c91fe6c9 {
+  height: 100vh;
+  background: #F5F6FA;
+}
+.detail-scroll.data-v-c91fe6c9 {
+  height: 100%;
+}
+.detail-header.data-v-c91fe6c9 {
+  background: linear-gradient(135deg, #4A90D9, #6BA5E7);
+  padding: 48rpx 32rpx;
+}
+.detail-title.data-v-c91fe6c9 {
+  font-size: 36rpx;
+  color: #FFF;
+  font-weight: 600;
+}
+.detail-section.data-v-c91fe6c9 {
+  background: #FFF;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin: 24rpx;
+}
+.section-label.data-v-c91fe6c9 {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+  display: block;
+  margin-bottom: 20rpx;
+}
+.steps.data-v-c91fe6c9 {
+  display: flex;
+  flex-direction: column;
+}
+.step-item.data-v-c91fe6c9 {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 24rpx;
+}
+.step-item.data-v-c91fe6c9:last-child {
+  margin-bottom: 0;
+}
+.step-num.data-v-c91fe6c9 {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  background: #4A90D9;
+  color: #FFF;
+  font-size: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+.step-info.data-v-c91fe6c9 {
+  flex: 1;
+}
+.step-title.data-v-c91fe6c9 {
+  font-size: 26rpx;
+  color: #333;
+  font-weight: 500;
+  display: block;
+  margin-bottom: 4rpx;
+}
+.step-desc.data-v-c91fe6c9 {
+  font-size: 24rpx;
+  color: #999;
+}
+.material-list.data-v-c91fe6c9 {
+  display: flex;
+  flex-direction: column;
+}
+.material-item.data-v-c91fe6c9 {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 12rpx;
+}
+.material-dot.data-v-c91fe6c9 {
+  color: #4A90D9;
+  margin-right: 12rpx;
+  font-size: 28rpx;
+}
+.material-text.data-v-c91fe6c9 {
+  font-size: 26rpx;
+  color: #666;
+}
+.info-row.data-v-c91fe6c9 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.info-text.data-v-c91fe6c9 {
+  font-size: 26rpx;
+  color: #666;
+  flex: 1;
+}
+.info-text.phone.data-v-c91fe6c9 {
+  color: #4A90D9;
+}
+.info-btn.data-v-c91fe6c9 {
+  padding: 10rpx 28rpx;
+  background: #EEF4FB;
+  border-radius: 20rpx;
+  font-size: 24rpx;
+  color: #4A90D9;
+}
+.info-btn.call.data-v-c91fe6c9 {
+  background: #E8F8E8;
+  color: #4CD964;
+}

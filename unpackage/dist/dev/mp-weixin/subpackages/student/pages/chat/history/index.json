@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "历史对话",
+  "usingComponents": {
+    "empty-state": "../../../../../common/components/empty-state"
+  }
+}

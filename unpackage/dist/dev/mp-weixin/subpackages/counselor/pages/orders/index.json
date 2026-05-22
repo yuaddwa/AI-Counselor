@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "工单管理",
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "custom-tabbar": "../../../../common/components/custom-tabbar",
+    "work-order-card": "../../../../common/components/work-order-card",
+    "empty-state": "../../../../common/components/empty-state"
+  }
+}

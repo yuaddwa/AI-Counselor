@@ -1,0 +1,178 @@
+{
+	"pages": [
+		{
+			"path": "subpackages/login/pages/login",
+			"style": {
+				"navigationBarTitleText": "AI辅导员",
+				"navigationStyle": "custom"
+			}
+		}
+	],
+	"subPackages": [
+		{
+			"root": "subpackages/student",
+			"name": "student",
+			"pages": [
+				{
+					"path": "pages/home/index",
+					"style": {
+						"navigationBarTitleText": "AI辅导员",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "pages/chat/index",
+					"style": {
+						"navigationBarTitleText": "智能问答",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "pages/chat/history/index",
+					"style": {
+						"navigationBarTitleText": "历史对话"
+					}
+				},
+				{
+					"path": "pages/services/index",
+					"style": {
+						"navigationBarTitleText": "校园服务",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "pages/services/guide-detail/index",
+					"style": {
+						"navigationBarTitleText": "办事指南"
+					}
+				},
+				{
+					"path": "pages/services/campus-map/index",
+					"style": {
+						"navigationBarTitleText": "校园地图"
+					}
+				},
+				{
+					"path": "pages/services/phonebook/index",
+					"style": {
+						"navigationBarTitleText": "常用电话"
+					}
+				},
+				{
+					"path": "pages/services/notices/index",
+				"style": {
+					"navigationBarTitleText": "通知中心",
+					"navigationStyle": "custom"
+				}
+				}
+			]
+		},
+		{
+			"root": "subpackages/counselor",
+			"name": "counselor",
+			"pages": [
+				{
+					"path": "pages/workspace/index",
+					"style": {
+						"navigationBarTitleText": "工作台",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "pages/knowledge/index",
+					"style": {
+						"navigationBarTitleText": "知识库",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "pages/knowledge/edit/index",
+					"style": {
+						"navigationBarTitleText": "编辑知识库"
+					}
+				},
+				{
+					"path": "pages/orders/index",
+					"style": {
+						"navigationBarTitleText": "工单管理",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "pages/orders/detail/index",
+					"style": {
+						"navigationBarTitleText": "工单详情"
+					}
+				},
+				{
+					"path": "pages/data/index",
+					"style": {
+						"navigationBarTitleText": "数据统计",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "pages/accounts/index",
+					"style": {
+						"navigationBarTitleText": "账号管理"
+					}
+				},
+				{
+					"path": "pages/notifications/index",
+					"style": {
+						"navigationBarTitleText": "通知推送"
+					}
+				},
+				{
+					"path": "pages/notifications/create/index",
+					"style": {
+						"navigationBarTitleText": "新建通知"
+					}
+				}
+			]
+		},
+		{
+			"root": "subpackages/profile",
+			"name": "profile",
+			"pages": [
+				{
+					"path": "pages/student/index",
+					"style": {
+						"navigationBarTitleText": "我的",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "pages/counselor/index",
+					"style": {
+						"navigationBarTitleText": "我的",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "pages/settings/index",
+					"style": {
+						"navigationBarTitleText": "设置"
+					}
+				}
+			]
+		}
+	],
+	"preloadRule": {
+		"subpackages/login/pages/login": {
+			"network": "all",
+			"packages": ["student", "counselor", "profile"]
+		}
+	},
+	"globalStyle": {
+		"navigationBarTextStyle": "white",
+		"navigationBarTitleText": "AI辅导员",
+		"navigationBarBackgroundColor": "#4A90D9",
+		"backgroundColor": "#F5F6FA"
+	},
+	"permission": {
+		"scope.record": {
+			"desc": "用于语音转文字识别"
+		}
+	}
+}

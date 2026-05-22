@@ -1,0 +1,72 @@
+/* 自定义全局样式变量 */
+/* uni-app 内置变量覆盖 */
+.page.data-v-9b7f27d7 {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.map-container.data-v-9b7f27d7 {
+  height: 45vh;
+}
+.campus-map.data-v-9b7f27d7 {
+  width: 100%;
+  height: 100%;
+}
+.map-sidebar.data-v-9b7f27d7 {
+  flex: 1;
+  background: #FFF;
+  border-radius: 24rpx 24rpx 0 0;
+  margin-top: -24rpx;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+}
+.search-bar.data-v-9b7f27d7 {
+  padding: 20rpx 24rpx;
+}
+.search-input.data-v-9b7f27d7 {
+  height: 72rpx;
+  background: #F5F6FA;
+  border-radius: 36rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+}
+.poi-list.data-v-9b7f27d7 {
+  flex: 1;
+  padding: 0 24rpx;
+}
+.poi-item.data-v-9b7f27d7 {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #F5F5F5;
+}
+.poi-item.active.data-v-9b7f27d7 {
+  background: #F5F6FA;
+  border-radius: 12rpx;
+  padding: 20rpx 16rpx;
+}
+.poi-icon.data-v-9b7f27d7 {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+.poi-info.data-v-9b7f27d7 {
+  flex: 1;
+}
+.poi-name.data-v-9b7f27d7 {
+  font-size: 28rpx;
+  color: #333;
+  display: block;
+}
+.poi-category.data-v-9b7f27d7 {
+  font-size: 22rpx;
+  color: #999;
+}

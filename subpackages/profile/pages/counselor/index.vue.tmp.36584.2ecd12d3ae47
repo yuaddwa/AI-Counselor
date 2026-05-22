@@ -1,0 +1,345 @@
+<template>
+	<view class="page">
+		<view class="profile-header">
+			<view class="header-status" :style="{ height: statusBarHeight + 'px' }"></view>
+			<view class="header-content">
+				<view class="avatar-wrap">
+					<view class="avatar">
+						<text class="avatar-text">{{ userInfo.name ? userInfo.name.charAt(0) : '师' }}</text>
+					</view>
+				</view>
+				<text class="user-name">{{ userInfo.name || '未登录' }}</text>
+				<text class="user-info">{{ userInfo.id }} · {{ userInfo.role }}</text>
+			</view>
+		</view>
+
+		<scroll-view scroll-y class="scroll-content">
+			<!-- 功能菜单 -->
+			<view class="menu-section">
+				<view class="menu-item" @click="goPage('password')">
+					<text class="menu-icon">&#128274;</text>
+					<text class="menu-text">修改登录密码</text>
+					<text class="menu-arrow">›</text>
+				</view>
+				<view class="menu-item" @click="goPage('logs')">
+					<text class="menu-icon">&#128203;</text>
+					<text class="menu-text">操作日志查询</text>
+					<text class="menu-arrow">›</text>
+				</view>
+				<view class="menu-item" @click="goPage('accounts')">
+					<text class="menu-icon">&#128101;</text>
+					<text class="menu-text">账号管理</text>
+					<text class="menu-arrow">›</text>
+				</view>
+			</view>
+
+			<view class="menu-section">
+				<view class="menu-item" @click="goPage('settings')">
+					<text class="menu-icon">&#9881;</text>
+					<text class="menu-text">系统设置</text>
+					<text class="menu-arrow">›</text>
+				</view>
+			</view>
+
+			<view class="logout-btn" @click="handleLogout">
+				<text>退出登录</text>
+			</view>
+
+			<view class="bottom-space"></view>
+		</scroll-view>
+
+		<custom-tabbar :current="4" :tabs="counselorTabs" @change="onTabChange" />
+
+		<!-- 修改密码弹窗 -->
+		<view class="modal-mask" v-if="showPassword" @click="showPassword = false">
+			<view class="modal-wrap" @click.stop>
+				<text class="modal-title">修改密码</text>
+				<input class="modal-input" v-model="passwordForm.oldPwd" placeholder="当前密码" :password="true" />
+				<input class="modal-input" v-model="passwordForm.newPwd" placeholder="新密码" :password="true" />
+				<input class="modal-input" v-model="passwordForm.confirmPwd" placeholder="确认新密码" :password="true" />
+				<view class="modal-btn" @click="changePassword">
+					<text>确认修改</text>
+				</view>
+			</view>
+		</view>
+
+		<!-- 操作日志弹窗 -->
+		<view class="modal-mask" v-if="showLogs" @click="showLogs = false">
+			<view class="modal-wrap large" @click.stop>
+				<text class="modal-title">操作日志</text>
+				<view class="log-list">
+					<view class="log-item" v-for="(log, i) in operationLogs" :key="i">
+						<text class="log-action">{{ log.action }}</text>
+						<text class="log-time">{{ log.time }}</text>
+					</view>
+				</view>
+				<empty-state v-if="operationLogs.length === 0" text="暂无操作记录" />
+				<view class="modal-btn" @click="showLogs = false">
+					<text>关闭</text>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script>
+import CustomTabbar from '@/common/components/custom-tabbar.vue'
+import EmptyState from '@/common/components/empty-state.vue'
+import store from '@/common/store/index.js'
+
+export default {
+	components: { CustomTabbar, EmptyState },
+	data() {
+		return {
+			statusBarHeight: 0,
+			showPassword: false,
+			showLogs: false,
+			passwordForm: { oldPwd: '', newPwd: '', confirmPwd: '' },
+			userInfo: {},
+			operationLogs: [
+				{ action: '导入了48个学生账号', time: '05-20 14:30' },
+				{ action: '发布了通知：开学报到须知', time: '05-20 10:00' },
+				{ action: '完结了工单 #1024', time: '05-19 16:30' },
+				{ action: '新增了知识库条目', time: '05-19 10:15' },
+				{ action: '修改了系统设置', time: '05-18 09:00' }
+			],
+			counselorTabs: [
+				{ text: '工作台', icon: '&#128200;', url: '/subpackages/counselor/pages/workspace/index' },
+				{ text: '知识库', icon: '&#128218;', url: '/subpackages/counselor/pages/knowledge/index' },
+				{ text: '工单', icon: '&#128196;', url: '/subpackages/counselor/pages/orders/index' },
+				{ text: '数据', icon: '&#128202;', url: '/subpackages/counselor/pages/data/index' },
+				{ text: '我的', icon: '&#128100;', url: '/subpackages/profile/pages/counselor/index' }
+			]
+		}
+	},
+	created() {
+		const sysInfo = uni.getSystemInfoSync()
+		this.statusBarHeight = sysInfo.statusBarHeight || 0
+		this.userInfo = store.state.userInfo || { name: '李老师', id: 'T001', role: '辅导员' }
+	},
+	methods: {
+		goPage(type) {
+			switch (type) {
+				case 'password': this.showPassword = true; break
+				case 'logs': this.showLogs = true; break
+				case 'accounts':
+					uni.navigateTo({ url: '/subpackages/counselor/pages/accounts/index' })
+					break
+				case 'settings':
+					uni.navigateTo({ url: '/subpackages/profile/pages/settings/index' })
+					break
+			}
+		},
+		changePassword() {
+			if (!this.passwordForm.oldPwd || !this.passwordForm.newPwd) {
+				uni.showToast({ title: '请填写完整', icon: 'none' })
+				return
+			}
+			if (this.passwordForm.newPwd !== this.passwordForm.confirmPwd) {
+				uni.showToast({ title: '两次密码不一致', icon: 'none' })
+				return
+			}
+			uni.showToast({ title: '修改成功', icon: 'success' })
+			this.showPassword = false
+			this.passwordForm = { oldPwd: '', newPwd: '', confirmPwd: '' }
+		},
+		handleLogout() {
+			uni.showModal({
+				title: '确认退出',
+				content: '确定要退出登录吗？',
+				success: (res) => {
+					if (res.confirm) {
+						store.mutations.logout()
+						uni.reLaunch({ url: '/subpackages/login/pages/login' })
+					}
+				}
+			})
+		},
+		onTabChange({ item }) {
+			uni.reLaunch({ url: item.url })
+		}
+	}
+}
+</script>
+
+<style lang="scss" scoped>
+.page {
+	height: 100vh;
+	display: flex;
+	flex-direction: column;
+	background: #F5F6FA;
+}
+
+.profile-header {
+	background: linear-gradient(135deg, #4A90D9, #6BA5E7);
+}
+
+.header-status { background: #4A90D9; }
+
+.header-content {
+	padding: 32rpx;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.avatar-wrap { margin-bottom: 16rpx; }
+
+.avatar {
+	width: 120rpx;
+	height: 120rpx;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.3);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: 4rpx solid rgba(255, 255, 255, 0.5);
+}
+
+.avatar-text {
+	font-size: 44rpx;
+	color: #FFF;
+	font-weight: 600;
+}
+
+.user-name {
+	font-size: 34rpx;
+	color: #FFF;
+	font-weight: 600;
+	margin-bottom: 8rpx;
+}
+
+.user-info {
+	font-size: 24rpx;
+	color: rgba(255, 255, 255, 0.8);
+}
+
+.scroll-content {
+	flex: 1;
+	height: 0;
+	padding-bottom: 140rpx;
+}
+
+.menu-section {
+	margin: 24rpx 24rpx 0;
+	background: #FFF;
+	border-radius: 16rpx;
+	overflow: hidden;
+}
+
+.menu-item {
+	display: flex;
+	align-items: center;
+	padding: 28rpx 24rpx;
+	border-bottom: 1rpx solid #F5F5F5;
+	&:last-child { border-bottom: none; }
+}
+
+.menu-icon {
+	font-size: 36rpx;
+	width: 48rpx;
+	text-align: center;
+	margin-right: 16rpx;
+}
+
+.menu-text {
+	flex: 1;
+	font-size: 28rpx;
+	color: #333;
+}
+
+.menu-arrow {
+	font-size: 32rpx;
+	color: #CCC;
+}
+
+.logout-btn {
+	margin: 40rpx 24rpx 0;
+	height: 88rpx;
+	background: #FFF;
+	border-radius: 12rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 30rpx;
+	color: #DD524D;
+}
+
+.bottom-space { height: 40rpx; }
+
+.modal-mask {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.4);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1000;
+}
+
+.modal-wrap {
+	width: 600rpx;
+	max-height: 80vh;
+	background: #FFF;
+	border-radius: 20rpx;
+	padding: 40rpx;
+	overflow-y: auto;
+	&.large { width: 660rpx; }
+}
+
+.modal-title {
+	font-size: 32rpx;
+	font-weight: 600;
+	color: #333;
+	display: block;
+	margin-bottom: 24rpx;
+}
+
+.modal-input {
+	height: 76rpx;
+	background: #F5F6FA;
+	border-radius: 12rpx;
+	padding: 0 20rpx;
+	font-size: 26rpx;
+	margin-bottom: 16rpx;
+}
+
+.modal-btn {
+	height: 76rpx;
+	background: #4A90D9;
+	border-radius: 12rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #FFF;
+	font-size: 28rpx;
+	margin-top: 16rpx;
+}
+
+.log-list {
+	margin-bottom: 16rpx;
+}
+
+.log-item {
+	display: flex;
+	justify-content: space-between;
+	padding: 16rpx 0;
+	border-bottom: 1rpx solid #F5F5F5;
+}
+
+.log-action {
+	font-size: 26rpx;
+	color: #333;
+	flex: 1;
+	margin-right: 16rpx;
+}
+
+.log-time {
+	font-size: 22rpx;
+	color: #999;
+	flex-shrink: 0;
+}
+</style>

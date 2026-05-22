@@ -1,0 +1,48 @@
+/* 自定义全局样式变量 */
+/* uni-app 内置变量覆盖 */
+.order-card.data-v-bacb5727 {
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+.order-header.data-v-bacb5727 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+.order-student.data-v-bacb5727 {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 500;
+}
+.order-status.data-v-bacb5727 {
+  font-size: 24rpx;
+  font-weight: 500;
+}
+.order-body.data-v-bacb5727 {
+  margin-bottom: 16rpx;
+}
+.order-desc.data-v-bacb5727 {
+  font-size: 26rpx;
+  color: #666;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.order-footer.data-v-bacb5727 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.order-class.data-v-bacb5727 {
+  font-size: 22rpx;
+  color: #999;
+}
+.order-time.data-v-bacb5727 {
+  font-size: 22rpx;
+  color: #999;
+}

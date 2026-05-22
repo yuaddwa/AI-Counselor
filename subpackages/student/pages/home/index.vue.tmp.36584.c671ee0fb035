@@ -1,0 +1,353 @@
+﻿<template>
+	<view class="page">
+		<view class="home-header">
+			<view class="header-status" :style="{ height: statusBarHeight + 'px' }"></view>
+			<view class="header-bar">
+				<text class="header-title">AI辅导员</text>
+				<view class="header-actions">
+					<text class="header-btn" @click="goServices">服务</text>
+					<view class="header-notice" @click="goNotices">
+						<text class="notice-icon"> </text>
+						<view class="notice-dot" v-if="unreadCount > 0"></view>
+					</view>
+					<text class="header-btn" @click="goProfile">我的</text>
+				</view>
+			</view>
+		</view>
+
+		<scroll-view scroll-y class="scroll-content">
+			<!-- 快捷问答 -->
+			<view class="section">
+				<view class="section-title">
+					<text>快捷问答</text>
+				</view>
+				<view class="quick-tags">
+					<view
+						class="quick-tag"
+						v-for="(tag, i) in quickTags"
+						:key="i"
+						@click="goChat(tag)"
+					>
+						<text>{{ tag }}</text>
+					</view>
+				</view>
+			</view>
+
+			<!-- 校园公告 -->
+			<view class="section">
+				<view class="section-title">
+					<text>校园公告</text>
+					<text class="section-more" @click="goNotices">更多 ›</text>
+				</view>
+				<view class="notice-list">
+					<view
+						class="notice-item"
+						v-for="(item, i) in announcements"
+						:key="i"
+						@click="goNoticeDetail(item)"
+					>
+						<view class="notice-badge" v-if="!item.read"></view>
+						<text class="notice-text">{{ item.title }}</text>
+						<text class="notice-time">{{ item.time }}</text>
+					</view>
+				</view>
+			</view>
+
+			<!-- 常用服务 -->
+			<view class="section">
+				<view class="section-title">
+					<text>常用服务</text>
+				</view>
+				<view class="service-grid">
+					<view
+						class="service-item"
+						v-for="(item, i) in services"
+						:key="i"
+						@click="goService(item)"
+					>
+						<view class="service-icon-wrap" :style="{ background: item.bg }">
+							<text class="service-icon">{{ item.icon }}</text>
+						</view>
+						<text class="service-name">{{ item.name }}</text>
+					</view>
+				</view>
+			</view>
+
+			<!-- 入学小贴士 -->
+			<view class="section">
+				<view class="section-title">
+					<text>入学小贴士</text>
+				</view>
+				<swiper class="tips-swiper" circular autoplay interval="4000">
+					<swiper-item v-for="(tip, i) in tips" :key="i">
+						<view class="tip-card">
+							<text class="tip-title">{{ tip.title }}</text>
+							<text class="tip-desc">{{ tip.desc }}</text>
+						</view>
+					</swiper-item>
+				</swiper>
+			</view>
+
+			<view class="bottom-space"></view>
+		</scroll-view>
+
+	</view>
+</template>
+
+<script>
+import store from '@/common/store/index.js'
+
+export default {
+	data() {
+		return {
+			statusBarHeight: 0,
+			quickTags: ['新生报到', '宿舍后勤', '缴费', '奖助', '请假', '军训'],
+			announcements: [
+				{ id: 1, title: '2026年秋季学期开学报到须知', time: '05-20', read: false },
+				{ id: 2, title: '关于国庆节放假安排的通知', time: '05-18', read: false },
+				{ id: 3, title: '图书馆暑期开放时间调整', time: '05-15', read: true }
+			],
+			services: [
+				{ name: '办事指南', icon: ' ', bg: '#E8F4FD', path: '/subpackages/student/pages/services/index' },
+				{ name: '校园地图', icon: ' ', bg: '#E8F8E8', path: '/subpackages/student/pages/services/campus-map/index' },
+				{ name: '联系电话', icon: ' ', bg: '#FFF3E0', path: '/subpackages/student/pages/services/phonebook/index' },
+				{ name: '人工客服', icon: ' ', bg: '#F3E8FD', path: '/subpackages/student/pages/chat/index?type=human' }
+			],
+			tips: [
+				{ title: '报到流程', desc: '新生报到需携带录取通知书、身份证、一寸照片8张到体育馆一楼办理' },
+				{ title: '宿舍入住', desc: '凭报到单到对应宿舍楼一楼值班室领取钥匙，需自备床上用品' },
+				{ title: '缴费指南', desc: '学费可通过校园APP在线缴费或到财务处刷卡缴费，支持分期' },
+				{ title: '校园卡办理', desc: '报到时统一发放校园卡，可用于食堂、图书馆、门禁等' }
+			],
+			studentTabs: [
+				{ text: '首页', icon: ' ', url: '/subpackages/student/pages/home/index' },
+				{ text: '问答', icon: ' ', url: '/subpackages/student/pages/chat/index' },
+				{ text: '服务', icon: ' ', url: '/subpackages/student/pages/services/index' },
+				{ text: '我的', icon: ' ', url: '/subpackages/profile/pages/student/index' }
+			]
+		}
+	},
+	computed: {
+		unreadCount() {
+			return this.announcements.filter(a => !a.read).length
+		}
+	},
+	created() {
+		const sysInfo = uni.getSystemInfoSync()
+		this.statusBarHeight = sysInfo.statusBarHeight || 0
+	},
+	methods: {
+		goChat(tag) {
+			const url = tag ? `/subpackages/student/pages/chat/index?question=${encodeURIComponent(tag)}` : '/subpackages/student/pages/chat/index'
+			uni.navigateTo({ url })
+		},
+		goNotices() {
+			uni.navigateTo({ url: '/subpackages/student/pages/services/notices/index' })
+		},
+		goNoticeDetail(item) {
+			item.read = true
+			uni.navigateTo({ url: `/subpackages/student/pages/services/notices/index?id=${item.id}` })
+		},
+		goService(item) {
+			uni.navigateTo({ url: item.path })
+		},
+		onTabChange({ item }) {
+			uni.reLaunch({ url: item.url })
+		}
+	}
+}
+</script>
+
+<style lang="scss" scoped>
+.page {
+	height: 100vh;
+	display: flex;
+	flex-direction: column;
+	background: #F5F6FA;
+}
+
+.home-header {
+	background: linear-gradient(135deg, #4A90D9, #6BA5E7);
+}
+
+.header-status {
+	background: #4A90D9;
+}
+
+.header-bar {
+	height: 88rpx;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 32rpx;
+}
+
+.header-title {
+	font-size: 38rpx;
+	color: #FFFFFF;
+	font-weight: 600;
+}
+
+.header-notice {
+	position: relative;
+	padding: 10rpx;
+}
+
+.notice-icon {
+	font-size: 40rpx;
+}
+
+.notice-dot {
+	position: absolute;
+	top: 6rpx;
+	right: 6rpx;
+	width: 16rpx;
+	height: 16rpx;
+	background: #DD524D;
+	border-radius: 50%;
+}
+
+.scroll-content {
+	flex: 1;
+	height: 0;
+	padding-bottom: 140rpx;
+}
+
+.section {
+	margin: 24rpx 24rpx 0;
+	background: #FFFFFF;
+	border-radius: 16rpx;
+	padding: 24rpx;
+}
+
+.section-title {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 20rpx;
+	font-size: 30rpx;
+	font-weight: 600;
+	color: #333;
+}
+
+.section-more {
+	font-size: 24rpx;
+	color: #4A90D9;
+	font-weight: 400;
+}
+
+.quick-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16rpx;
+}
+
+.quick-tag {
+	padding: 12rpx 28rpx;
+	background: #EEF4FB;
+	border-radius: 28rpx;
+	font-size: 26rpx;
+	color: #4A90D9;
+}
+
+.notice-list {
+	display: flex;
+	flex-direction: column;
+}
+
+.notice-item {
+	display: flex;
+	align-items: center;
+	padding: 16rpx 0;
+	border-bottom: 1rpx solid #F5F5F5;
+	&:last-child { border-bottom: none; }
+}
+
+.notice-badge {
+	width: 12rpx;
+	height: 12rpx;
+	background: #DD524D;
+	border-radius: 50%;
+	margin-right: 12rpx;
+	flex-shrink: 0;
+}
+
+.notice-text {
+	flex: 1;
+	font-size: 26rpx;
+	color: #333;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	margin-right: 16rpx;
+}
+
+.notice-time {
+	font-size: 22rpx;
+	color: #999;
+	flex-shrink: 0;
+}
+
+.service-grid {
+	display: flex;
+	flex-wrap: wrap;
+}
+
+.service-item {
+	width: 25%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 16rpx 0;
+}
+
+.service-icon-wrap {
+	width: 80rpx;
+	height: 80rpx;
+	border-radius: 20rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: 12rpx;
+}
+
+.service-icon {
+	font-size: 40rpx;
+}
+
+.service-name {
+	font-size: 24rpx;
+	color: #333;
+}
+
+.tips-swiper {
+	height: 200rpx;
+}
+
+.tip-card {
+	height: 100%;
+	background: linear-gradient(135deg, #EEF4FB, #E8F4FD);
+	border-radius: 12rpx;
+	padding: 24rpx;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+}
+
+.tip-title {
+	font-size: 28rpx;
+	font-weight: 600;
+	color: #4A90D9;
+	margin-bottom: 12rpx;
+}
+
+.tip-desc {
+	font-size: 24rpx;
+	color: #666;
+	line-height: 1.5;
+}
+
+.bottom-space {
+	height: 40rpx;
+}
+</style>

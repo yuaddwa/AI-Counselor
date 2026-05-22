@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "知识库",
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "custom-tabbar": "../../../../common/components/custom-tabbar",
+    "empty-state": "../../../../common/components/empty-state"
+  }
+}

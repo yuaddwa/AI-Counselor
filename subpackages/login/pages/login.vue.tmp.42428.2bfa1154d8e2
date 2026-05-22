@@ -1,0 +1,423 @@
+﻿<template>
+	<view class="page">
+		<!-- 头部 -->
+		<view class="login-header">
+			<view class="header-status" :style="{ height: statusBarHeight + 'px' }"></view>
+			<!-- 浮动装饰 -->
+			<view class="float-bubble b1"></view>
+			<view class="float-bubble b2"></view>
+			<view class="float-bubble b3"></view>
+			<view class="float-bubble b4"></view>
+			<view class="float-bubble b5"></view>
+			<view class="header-content">
+				<view class="logo-wrap">
+					<view class="logo-circle">
+						<text class="logo-text">AI</text>
+					</view>
+					<view class="logo-ring"></view>
+					<view class="logo-ring ring2"></view>
+				</view>
+				<text class="app-title">AI辅导员</text>
+				<text class="app-desc">您的校园智能助手</text>
+			</view>
+		</view>
+
+		<!-- 登录卡片 -->
+		<view class="login-card">
+			<!-- 身份切换 -->
+			<view class="role-tabs">
+				<view
+					class="role-tab"
+					:class="{ active: role === 'student' }"
+					@click="switchRole('student')"
+				>
+					<text> </text>
+					<text>学生</text>
+				</view>
+				<view
+					class="role-tab"
+					:class="{ active: role === 'counselor' }"
+					@click="switchRole('counselor')"
+				>
+					<text> ‍</text>
+					<text>辅导员</text>
+				</view>
+				<view class="tab-slider" :style="{ left: role === 'student' ? '6rpx' : 'calc(50% + 6rpx)' }"></view>
+			</view>
+
+			<!-- 学生登录 -->
+			<view class="login-form" v-if="role === 'student'" key="student">
+				<view class="input-group">
+					<view class="input-icon"> </view>
+					<input
+						class="login-input"
+						v-model="studentForm.studentId"
+						placeholder="请输入学号"
+						type="text"
+					/>
+				</view>
+				<view class="input-group">
+					<view class="input-icon"> </view>
+					<input
+						class="login-input"
+						v-model="studentForm.password"
+						placeholder="请输入密码"
+						:password="!showPassword"
+					/>
+					<view class="input-eye" @click="showPassword = !showPassword">
+						<text>{{ showPassword ? ' ' : ' ' }}</text>
+					</view>
+				</view>
+				<view class="login-btn" @click="handleStudentLogin" :class="{ loading: isLoading }">
+					<text>{{ isLoading ? '登录中...' : '登 录' }}</text>
+				</view>
+				<view class="forgot-link" @click="handleForgot">
+					<text>忘记密码？</text>
+				</view>
+			</view>
+
+			<!-- 辅导员登录 -->
+			<view class="login-form" v-if="role === 'counselor'" key="counselor">
+				<view class="input-group">
+					<view class="input-icon"> </view>
+					<input
+						class="login-input"
+						v-model="counselorForm.workId"
+						placeholder="请输入工号"
+						type="text"
+					/>
+				</view>
+				<view class="input-group">
+					<view class="input-icon"> </view>
+					<input
+						class="login-input"
+						v-model="counselorForm.password"
+						placeholder="请输入密码"
+						:password="!showPassword"
+					/>
+					<view class="input-eye" @click="showPassword = !showPassword">
+						<text>{{ showPassword ? ' ' : ' ' }}</text>
+					</view>
+				</view>
+				<view class="login-btn" @click="handleCounselorLogin" :class="{ loading: isLoading }">
+					<text>{{ isLoading ? '登录中...' : '登 录' }}</text>
+				</view>
+			</view>
+
+			<view class="card-footer">
+				<text>登录即表示同意</text>
+				<text class="link">用户协议</text>
+				<text>和</text>
+				<text class="link">隐私政策</text>
+			</view>
+		</view>
+
+		<!-- 错误提示 -->
+		<view class="error-toast" v-if="errorMsg">
+			<text>{{ errorMsg }}</text>
+		</view>
+	</view>
+</template>
+
+<script>
+import store from '@/common/store/index.js'
+
+export default {
+	data() {
+		return {
+			statusBarHeight: 0,
+			role: 'student',
+			showPassword: false,
+			isLoading: false,
+			errorMsg: '',
+			studentForm: {
+				studentId: '',
+				password: '123456'
+			},
+			counselorForm: {
+				workId: '',
+				password: ''
+			}
+		}
+	},
+	created() {
+		const windowInfo = uni.getWindowInfo()
+		this.statusBarHeight = windowInfo.statusBarHeight || 0
+
+		// 检查是否已登录
+		if (store.state.isLogin) {
+			this.redirectByRole(store.state.userType)
+		}
+	},
+	methods: {
+		validateStudent() {
+			if (!this.studentForm.studentId.trim()) {
+				this.showError('请输入学号')
+				return false
+			}
+			if (!this.studentForm.password.trim()) {
+				this.showError('请输入密码')
+				return false
+			}
+			return true
+		},
+		validateCounselor() {
+			if (!this.counselorForm.workId.trim()) {
+				this.showError('请输入工号')
+				return false
+			}
+			if (!this.counselorForm.password.trim()) {
+				this.showError('请输入密码')
+				return false
+			}
+			return true
+		},
+		showError(msg) {
+			this.errorMsg = msg
+			setTimeout(() => { this.errorMsg = '' }, 3000)
+		},
+		handleStudentLogin() {
+			if (!this.validateStudent()) return
+			this.isLoading = true
+			this.errorMsg = ''
+
+			// 模拟登录
+			setTimeout(() => {
+				this.isLoading = false
+				const userInfo = {
+					id: this.studentForm.studentId,
+					name: '张同学',
+					className: '计算机2601',
+					avatar: ''
+				}
+				store.mutations.setUserType('student')
+				store.mutations.setToken('mock_token_student_' + Date.now())
+				store.mutations.setUserInfo(userInfo)
+				uni.setStorageSync('userInfo', userInfo)
+				uni.setStorageSync('userType', 'student')
+
+				uni.showToast({ title: '登录成功', icon: 'success' })
+				setTimeout(() => {
+					this.redirectByRole('student')
+				}, 1000)
+			}, 1500)
+		},
+		handleCounselorLogin() {
+			if (!this.validateCounselor()) return
+			this.isLoading = true
+			this.errorMsg = ''
+
+			setTimeout(() => {
+				this.isLoading = false
+				const userInfo = {
+					id: this.counselorForm.workId,
+					name: '李老师',
+					role: '辅导员',
+					avatar: ''
+				}
+				store.mutations.setUserType('counselor')
+				store.mutations.setToken('mock_token_counselor_' + Date.now())
+				store.mutations.setUserInfo(userInfo)
+				uni.setStorageSync('userInfo', userInfo)
+				uni.setStorageSync('userType', 'counselor')
+
+				uni.showToast({ title: '登录成功', icon: 'success' })
+				setTimeout(() => {
+					this.redirectByRole('counselor')
+				}, 1000)
+			}, 1500)
+		},
+		handleForgot() {
+			uni.showModal({
+				title: '重置密码',
+				content: '确认将密码重置为默认密码 123456？',
+				success: (res) => {
+					if (res.confirm) {
+						this.studentForm.password = '123456'
+						uni.showToast({ title: '已重置为默认密码', icon: 'success' })
+					}
+				}
+			})
+		},
+		redirectByRole(role) {
+			const url = role === 'student'
+				? '/subpackages/student/pages/home/index'
+				: '/subpackages/counselor/pages/workspace/index'
+			uni.reLaunch({ url })
+		}
+	}
+}
+</script>
+
+<style lang="scss" scoped>
+.page {
+	min-height: 100vh;
+	background: linear-gradient(180deg, #E8F4FD 0%, #F0F8FF 30%, #F5F6FA 60%);
+}
+
+.login-header {
+	padding-bottom: 120rpx;
+}
+
+.header-status {
+	background: #E8F4FD;
+}
+
+.header-content {
+	padding: 60rpx 48rpx 0;
+}
+
+.app-title {
+	font-size: 56rpx;
+	color: #5B9BD5;
+	font-weight: 700;
+	display: block;
+	margin-bottom: 12rpx;
+	animation: fadeSlideDown 0.6s ease both;
+}
+
+.app-desc {
+	font-size: 28rpx;
+	color: rgba(91, 155, 213, 0.7);
+	animation: fadeSlideDown 0.6s ease 0.15s both;
+}
+
+.login-card {
+	margin: -80rpx 32rpx 0;
+	background: #FFFFFF;
+	border-radius: 24rpx;
+	padding: 40rpx 32rpx;
+	box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.08);
+	animation: fadeSlideUp 0.5s ease 0.2s both;
+}
+
+.role-tabs {
+	display: flex;
+	background: #F5F6FA;
+	border-radius: 12rpx;
+	padding: 6rpx;
+	margin-bottom: 40rpx;
+}
+
+.role-tab {
+	flex: 1;
+	height: 72rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 28rpx;
+	color: #666;
+	border-radius: 8rpx;
+	transition: all 0.3s ease;
+	&.active {
+		background: #FFFFFF;
+		color: #5B9BD5;
+		font-weight: 600;
+		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+	}
+}
+
+.login-form {
+	display: flex;
+	flex-direction: column;
+	animation: fadeSlideUp 0.35s ease both;
+}
+
+.input-group {
+	display: flex;
+	align-items: center;
+	height: 96rpx;
+	background: #F5F6FA;
+	border-radius: 12rpx;
+	padding: 0 20rpx;
+	margin-bottom: 24rpx;
+	animation: fadeSlideUp 0.4s ease both;
+	&:nth-child(1) { animation-delay: 0.05s; }
+	&:nth-child(2) { animation-delay: 0.1s; }
+	transition: box-shadow 0.2s ease;
+}
+
+.input-icon {
+	font-size: 36rpx;
+	margin-right: 16rpx;
+	width: 48rpx;
+	text-align: center;
+}
+
+.login-input {
+	flex: 1;
+	height: 100%;
+	font-size: 28rpx;
+	color: #333;
+}
+
+.input-eye {
+	width: 48rpx;
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 32rpx;
+}
+
+.login-btn {
+	height: 88rpx;
+	background: linear-gradient(135deg, #5B9BD5, #7BB8E8);
+	border-radius: 12rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 32rpx;
+	color: #5B9BD5;
+	font-weight: 600;
+	margin-top: 8rpx;
+	animation: fadeSlideUp 0.4s ease 0.15s both;
+	transition: transform 0.15s ease, opacity 0.3s ease;
+	&:active { transform: scale(0.97); }
+	&.loading {
+		opacity: 0.7;
+	}
+}
+
+.forgot-link {
+	text-align: center;
+	margin-top: 24rpx;
+	font-size: 26rpx;
+	color: #5B9BD5;
+	animation: fadeIn 0.4s ease 0.25s both;
+}
+
+.error-toast {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	background: rgba(0, 0, 0, 0.75);
+	color: #FFF;
+	padding: 20rpx 40rpx;
+	border-radius: 12rpx;
+	font-size: 26rpx;
+	z-index: 9999;
+	animation: errorPop 0.3s ease both;
+}
+
+@keyframes fadeSlideDown {
+	from { opacity: 0; transform: translateY(-30rpx); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeSlideUp {
+	from { opacity: 0; transform: translateY(40rpx); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+@keyframes errorPop {
+	0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+	100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+</style>

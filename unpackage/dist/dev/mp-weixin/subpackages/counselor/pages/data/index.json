@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "数据统计",
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "custom-tabbar": "../../../../common/components/custom-tabbar"
+  }
+}

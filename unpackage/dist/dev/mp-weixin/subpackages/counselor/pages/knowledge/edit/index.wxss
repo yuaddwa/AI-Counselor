@@ -1,0 +1,81 @@
+/* 自定义全局样式变量 */
+/* uni-app 内置变量覆盖 */
+.page.data-v-97170c64 {
+  height: 100vh;
+  background: #F5F6FA;
+}
+.edit-scroll.data-v-97170c64 {
+  height: 100%;
+  padding: 24rpx;
+}
+.form-group.data-v-97170c64 {
+  background: #FFF;
+  border-radius: 12rpx;
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+}
+.form-label.data-v-97170c64 {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 500;
+  display: block;
+  margin-bottom: 16rpx;
+}
+.form-input.data-v-97170c64 {
+  height: 72rpx;
+  background: #F5F6FA;
+  border-radius: 12rpx;
+  padding: 0 20rpx;
+  font-size: 28rpx;
+}
+.form-textarea.data-v-97170c64 {
+  width: 100%;
+  min-height: 400rpx;
+  background: #F5F6FA;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  font-size: 28rpx;
+  line-height: 1.6;
+  box-sizing: border-box;
+}
+.picker-wrap.data-v-97170c64 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 72rpx;
+  background: #F5F6FA;
+  border-radius: 12rpx;
+  padding: 0 20rpx;
+  font-size: 28rpx;
+  color: #333;
+}
+.picker-arrow-right.data-v-97170c64 {
+  width: 14rpx;
+  height: 14rpx;
+  border-right: 2rpx solid #CCC;
+  border-bottom: 2rpx solid #CCC;
+  transform: rotate(-45deg);
+}
+.form-actions.data-v-97170c64 {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 32rpx;
+  padding-bottom: 40rpx;
+}
+.btn-cancel.data-v-97170c64, .btn-save.data-v-97170c64 {
+  flex: 1;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12rpx;
+  font-size: 30rpx;
+}
+.btn-cancel.data-v-97170c64 {
+  background: #F5F6FA;
+  color: #666;
+}
+.btn-save.data-v-97170c64 {
+  background: #4A90D9;
+  color: #FFF;
+}

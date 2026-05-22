@@ -1,0 +1,65 @@
+{
+  "pages": [
+    "subpackages/login/pages/login"
+  ],
+  "subPackages": [
+    {
+      "root": "subpackages/student",
+      "pages": [
+        "pages/home/index",
+        "pages/chat/index",
+        "pages/chat/history/index",
+        "pages/services/index",
+        "pages/services/guide-detail/index",
+        "pages/services/campus-map/index",
+        "pages/services/phonebook/index",
+        "pages/services/notices/index"
+      ],
+      "name": "student"
+    },
+    {
+      "root": "subpackages/counselor",
+      "pages": [
+        "pages/workspace/index",
+        "pages/knowledge/index",
+        "pages/knowledge/edit/index",
+        "pages/orders/index",
+        "pages/orders/detail/index",
+        "pages/data/index",
+        "pages/accounts/index",
+        "pages/notifications/index",
+        "pages/notifications/create/index"
+      ],
+      "name": "counselor"
+    },
+    {
+      "root": "subpackages/profile",
+      "pages": [
+        "pages/student/index",
+        "pages/counselor/index",
+        "pages/settings/index"
+      ],
+      "name": "profile"
+    }
+  ],
+  "window": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "AI辅导员",
+    "navigationBarBackgroundColor": "#4A90D9",
+    "backgroundColor": "#F5F6FA"
+  },
+  "preloadRule": {
+    "subpackages/login/pages/login": {
+      "network": "all",
+      "packages": [
+        "student",
+        "counselor",
+        "profile"
+      ]
+    }
+  },
+  "requiredPrivateInfos": [
+    "getLocation"
+  ],
+  "usingComponents": {}
+}

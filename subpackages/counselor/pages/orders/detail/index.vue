@@ -1,0 +1,317 @@
+﻿<template>
+	<view class="page">
+		<scroll-view scroll-y class="detail-scroll">
+			<!-- 学生信息 -->
+			<view class="student-card">
+				<view class="student-row">
+					<text class="student-id">{{ order.studentId }}</text>
+					<text class="student-name">{{ order.studentName }}</text>
+				</view>
+				<text class="student-class">{{ order.className }}</text>
+				<text class="student-time">{{ order.createTime }}</text>
+			</view>
+
+			<!-- 原始问题 -->
+			<view class="section">
+				<text class="section-label">学生原始问题</text>
+				<text class="section-text">{{ order.question }}</text>
+			</view>
+
+			<!-- AI自动回复 -->
+			<view class="section ai-reply">
+				<text class="section-label">AI自动回复</text>
+				<text class="section-text">{{ order.aiReply }}</text>
+			</view>
+
+			<!-- 历史对话 -->
+			<view class="section">
+				<text class="section-label">历史对话记录</text>
+				<view class="chat-history">
+					<view
+						class="chat-msg"
+						v-for="(msg, i) in order.chatHistory"
+						:key="i"
+						:class="{ 'msg-self': msg.role === 'student' }"
+					>
+						<text class="msg-content">{{ msg.content }}</text>
+					</view>
+				</view>
+			</view>
+
+			<!-- 问题标签 -->
+			<view class="section">
+				<text class="section-label">问题标签</text>
+				<view class="tag-list">
+					<view
+						class="tag-item"
+						v-for="(tag, i) in tags"
+						:key="i"
+						:class="{ active: selectedTag === tag }"
+						@click="selectedTag = tag"
+					>
+						<text>{{ tag }}</text>
+					</view>
+				</view>
+			</view>
+
+			<!-- 回复区 -->
+			<view class="section">
+				<text class="section-label">回复</text>
+				<textarea
+					class="reply-input"
+					v-model="replyContent"
+					placeholder="请输入回复内容..."
+				/>
+				<view class="reply-attach" @click="attachImage">
+					<text>  添加图片</text>
+				</view>
+			</view>
+
+			<!-- 操作按钮 -->
+			<view class="action-bar">
+				<view class="action-btn accept" @click="handleAccept" v-if="order.status === 'pending'">
+					<text>受理</text>
+				</view>
+				<view class="action-btn complete" @click="handleComplete">
+					<text>完结</text>
+				</view>
+				<view class="action-btn reject" @click="handleReject" v-if="order.status !== 'completed'">
+					<text>退回</text>
+				</view>
+			</view>
+
+			<view class="bottom-space"></view>
+		</scroll-view>
+	</view>
+</template>
+
+<script>
+export default {
+	data() {
+		return {
+			order: {
+				id: 1,
+				studentId: '2026001',
+				studentName: '张同学',
+				className: '计算机2601',
+				question: '关于休学申请的流程咨询，需要准备什么材料？一般需要多长时间能办理完成？',
+				status: 'pending',
+				createTime: '2026-05-20 14:30',
+				aiReply: '关于休学申请：\n1. 需要填写《休学申请表》\n2. 提供相关证明材料（如医院证明）\n3. 辅导员签字审批\n4. 学院审批\n5. 教务处备案\n\n一般需要5-10个工作日完成审批。',
+				chatHistory: [
+					{ role: 'student', content: '我想办理休学，需要什么手续？' },
+					{ role: 'ai', content: '办理休学需要以下材料：1. 休学申请表 2. 相关证明材料。请到教务处领取申请表。' },
+					{ role: 'student', content: '一般多久能办完？需要辅导员签字吗？' }
+				]
+			},
+			tags: ['政策咨询', '后勤报修', '心理问题', '教务问题', '其他'],
+			selectedTag: '',
+			replyContent: ''
+		}
+	},
+	onLoad(options) {
+		if (options.id) {
+			// 加载工单详情
+		}
+	},
+	methods: {
+		attachImage() {
+			uni.chooseImage({
+				count: 3,
+				success: (res) => {
+					uni.showToast({ title: '已选择' + res.tempFilePaths.length + '张图片', icon: 'success' })
+				}
+			})
+		},
+		handleAccept() {
+			this.order.status = 'processing'
+			uni.showToast({ title: '已受理', icon: 'success' })
+		},
+		handleComplete() {
+			if (!this.replyContent.trim()) {
+				uni.showToast({ title: '请先填写回复', icon: 'none' })
+				return
+			}
+			uni.showModal({
+				title: '确认完结',
+				content: '确定完结此工单？',
+				success: (res) => {
+					if (res.confirm) {
+						this.order.status = 'completed'
+						uni.showToast({ title: '已完结', icon: 'success' })
+						setTimeout(() => uni.navigateBack(), 1500)
+					}
+				}
+			})
+		},
+		handleReject() {
+			uni.showModal({
+				title: '确认退回',
+				content: '确定退回此工单？',
+				success: (res) => {
+					if (res.confirm) {
+						this.order.status = 'pending'
+						uni.showToast({ title: '已退回', icon: 'success' })
+					}
+				}
+			})
+		}
+	}
+}
+</script>
+
+<style lang="scss" scoped>
+.page {
+	height: 100vh;
+	background: #F5F6FA;
+}
+
+.detail-scroll {
+	height: 100%;
+}
+
+.student-card {
+	background: linear-gradient(135deg, #4A90D9, #6BA5E7);
+	padding: 32rpx;
+	margin: 24rpx;
+	border-radius: 16rpx;
+}
+
+.student-row {
+	display: flex;
+	align-items: center;
+	gap: 16rpx;
+	margin-bottom: 12rpx;
+}
+
+.student-id {
+	font-size: 28rpx;
+	color: rgba(255, 255, 255, 0.8);
+}
+
+.student-name {
+	font-size: 32rpx;
+	color: #FFF;
+	font-weight: 600;
+}
+
+.student-class {
+	font-size: 24rpx;
+	color: rgba(255, 255, 255, 0.8);
+	display: block;
+	margin-bottom: 4rpx;
+}
+
+.student-time {
+	font-size: 22rpx;
+	color: rgba(255, 255, 255, 0.6);
+}
+
+.section {
+	background: #FFF;
+	border-radius: 12rpx;
+	padding: 24rpx;
+	margin: 0 24rpx 16rpx;
+}
+
+.section-label {
+	font-size: 26rpx;
+	font-weight: 600;
+	color: #333;
+	display: block;
+	margin-bottom: 16rpx;
+}
+
+.section-text {
+	font-size: 26rpx;
+	color: #666;
+	line-height: 1.6;
+}
+
+.ai-reply {
+	background: #F0F7FF;
+	border: 1rpx solid #D4E8FC;
+}
+
+.chat-history {
+	display: flex;
+	flex-direction: column;
+	gap: 12rpx;
+}
+
+.chat-msg {
+	max-width: 75%;
+	padding: 16rpx 20rpx;
+	background: #F5F6FA;
+	border-radius: 12rpx;
+	align-self: flex-start;
+	&.msg-self {
+		align-self: flex-end;
+		background: #4A90D9;
+		.msg-content { color: #FFF; }
+	}
+}
+
+.msg-content {
+	font-size: 26rpx;
+	color: #333;
+	line-height: 1.5;
+}
+
+.tag-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12rpx;
+}
+
+.tag-item {
+	padding: 10rpx 24rpx;
+	background: #F5F6FA;
+	border-radius: 20rpx;
+	font-size: 24rpx;
+	color: #666;
+	&.active {
+		background: #4A90D9;
+		color: #FFF;
+	}
+}
+
+.reply-input {
+	width: 100%;
+	min-height: 200rpx;
+	background: #F5F6FA;
+	border-radius: 12rpx;
+	padding: 20rpx;
+	font-size: 26rpx;
+	box-sizing: border-box;
+	margin-bottom: 16rpx;
+}
+
+.reply-attach {
+	padding: 16rpx;
+	text-align: center;
+	color: #4A90D9;
+	font-size: 26rpx;
+}
+
+.action-bar {
+	display: flex;
+	padding: 24rpx;
+	gap: 16rpx;
+}
+
+.action-btn {
+	flex: 1;
+	height: 80rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 12rpx;
+	font-size: 28rpx;
+	&.accept { background: #4A90D9; color: #FFF; }
+	&.complete { background: #4CD964; color: #FFF; }
+	&.reject { background: #F5F6FA; color: #DD524D; }
+}
+
+.bottom-space { height: 40rpx; }
+</style>

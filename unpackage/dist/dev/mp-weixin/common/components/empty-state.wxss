@@ -1,0 +1,25 @@
+/* 自定义全局样式变量 */
+/* uni-app 内置变量覆盖 */
+.empty-wrap.data-v-e695b945 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 0;
+}
+.empty-icon.data-v-e695b945 {
+  font-size: 80rpx;
+  margin-bottom: 20rpx;
+}
+.empty-text.data-v-e695b945 {
+  font-size: 28rpx;
+  color: #999;
+  margin-bottom: 30rpx;
+}
+.empty-action.data-v-e695b945 {
+  padding: 16rpx 40rpx;
+  background: #4A90D9;
+  border-radius: 32rpx;
+  font-size: 26rpx;
+  color: #fff;
+}

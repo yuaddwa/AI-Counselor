@@ -1,0 +1,126 @@
+const BASE_URL = ''
+
+function request(options) {
+	return new Promise((resolve, reject) => {
+		const token = uni.getStorageSync('token') || ''
+		uni.request({
+			url: BASE_URL + options.url,
+			method: options.method || 'GET',
+			data: options.data || {},
+			header: {
+				'Content-Type': 'application/json',
+				'Authorization': token ? `Bearer ${token}` : '',
+				...options.header
+			},
+			success(res) {
+				if (res.statusCode === 200) {
+					resolve(res.data)
+				} else if (res.statusCode === 401) {
+					uni.removeStorageSync('token')
+					uni.reLaunch({ url: '/subpackages/login/pages/login' })
+					reject({ code: 401, msg: '登录已过期' })
+				} else {
+					reject(res.data || { code: res.statusCode, msg: '请求失败' })
+				}
+			},
+			fail(err) {
+				reject({ code: -1, msg: '网络异常' })
+			}
+		})
+	})
+}
+
+export const api = {
+	login: (data) => request({ url: '/api/login', method: 'POST', data }),
+	getStudentHome: () => request({ url: '/api/student/home' }),
+	getAnnouncements: () => request({ url: '/api/announcements' }),
+	getQuickQuestions: () => request({ url: '/api/quick-questions' }),
+	sendMessage: (data) => request({ url: '/api/chat/send', method: 'POST', data }),
+	getChatHistory: (params) => request({ url: '/api/chat/history', data: params }),
+	getChatDetail: (id) => request({ url: `/api/chat/session/${id}` }),
+	deleteChatSession: (id) => request({ url: `/api/chat/session/${id}`, method: 'DELETE' }),
+	clearAllChat: () => request({ url: '/api/chat/clear', method: 'DELETE' }),
+	submitFeedback: (data) => request({ url: '/api/feedback', method: 'POST', data }),
+	getServiceGuides: () => request({ url: '/api/services/guides' }),
+	getGuideDetail: (id) => request({ url: `/api/services/guides/${id}` }),
+	getCampusMap: () => request({ url: '/api/services/map' }),
+	getPhonebook: () => request({ url: '/api/services/phonebook' }),
+	getNotices: (params) => request({ url: '/api/notices', data: params }),
+	getNoticeDetail: (id) => request({ url: `/api/notices/${id}` }),
+	getUserProfile: () => request({ url: '/api/user/profile' }),
+	updatePassword: (data) => request({ url: '/api/user/password', method: 'PUT', data }),
+	submitUserFeedback: (data) => request({ url: '/api/user/feedback', method: 'POST', data }),
+	getMyTickets: (params) => request({ url: '/api/user/tickets', data: params }),
+	// 辅导员端
+	getWorkspaceData: () => request({ url: '/api/counselor/workspace' }),
+	getKnowledgeList: (params) => request({ url: '/api/counselor/knowledge', data: params }),
+	saveKnowledge: (data) => request({ url: '/api/counselor/knowledge', method: 'POST', data }),
+	deleteKnowledge: (id) => request({ url: `/api/counselor/knowledge/${id}`, method: 'DELETE' }),
+	uploadKnowledgeFile: (filePath) => {
+		return new Promise((resolve, reject) => {
+			const token = uni.getStorageSync('token') || ''
+			uni.uploadFile({
+				url: BASE_URL + '/api/counselor/knowledge/import',
+				filePath,
+				name: 'file',
+				header: { 'Authorization': `Bearer ${token}` },
+				success: (res) => {
+					const data = JSON.parse(res.data)
+					resolve(data)
+				},
+				fail: reject
+			})
+		})
+	},
+	testKnowledge: (data) => request({ url: '/api/counselor/knowledge/test', method: 'POST', data }),
+	getOrders: (params) => request({ url: '/api/counselor/orders', data: params }),
+	getOrderDetail: (id) => request({ url: `/api/counselor/orders/${id}` }),
+	replyOrder: (data) => request({ url: '/api/counselor/orders/reply', method: 'POST', data }),
+	updateOrderStatus: (data) => request({ url: '/api/counselor/orders/status', method: 'PUT', data }),
+	getStatistics: (params) => request({ url: '/api/counselor/statistics', data: params }),
+	getAccounts: (params) => request({ url: '/api/counselor/accounts', data: params }),
+	addAccount: (data) => request({ url: '/api/counselor/accounts', method: 'POST', data }),
+	updateAccount: (data) => request({ url: '/api/counselor/accounts', method: 'PUT', data }),
+	resetAccountPassword: (id) => request({ url: `/api/counselor/accounts/${id}/reset`, method: 'POST' }),
+	batchImportAccounts: (filePath) => {
+		return new Promise((resolve, reject) => {
+			const token = uni.getStorageSync('token') || ''
+			uni.uploadFile({
+				url: BASE_URL + '/api/counselor/accounts/import',
+				filePath,
+				name: 'file',
+				header: { 'Authorization': `Bearer ${token}` },
+				success: (res) => {
+					const data = JSON.parse(res.data)
+					resolve(data)
+				},
+				fail: reject
+			})
+		})
+	},
+	downloadTemplate: () => {
+		return new Promise((resolve, reject) => {
+			uni.downloadFile({
+				url: BASE_URL + '/api/counselor/accounts/template',
+				success: (res) => {
+					if (res.statusCode === 200) {
+						uni.openDocument({
+							filePath: res.tempFilePath,
+							success: resolve,
+							fail: reject
+						})
+					} else {
+						reject(res)
+					}
+				},
+				fail: reject
+			})
+		})
+	},
+	getNotifications: (params) => request({ url: '/api/counselor/notifications', data: params }),
+	createNotification: (data) => request({ url: '/api/counselor/notifications', method: 'POST', data }),
+	getCounselorSubAccounts: () => request({ url: '/api/counselor/sub-accounts' }),
+	getOperationLogs: (params) => request({ url: '/api/counselor/logs', data: params })
+}
+
+export default request

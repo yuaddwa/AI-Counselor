@@ -1,0 +1,25 @@
+/* 自定义全局样式变量 */
+$primary: #4A90D9;
+$primary-light: #6BA5E7;
+$primary-dark: #357ABD;
+$success: #4CD964;
+$warning: #F0AD4E;
+$error: #DD524D;
+$bg: #F5F6FA;
+$card-bg: #FFFFFF;
+$text-primary: #333333;
+$text-secondary: #666666;
+$text-hint: #999999;
+$border: #EEEEEE;
+$shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+
+/* uni-app 内置变量覆盖 */
+$uni-color-primary: $primary;
+$uni-color-success: $success;
+$uni-color-warning: $warning;
+$uni-color-error: $error;
+$uni-text-color: $text-primary;
+$uni-text-color-grey: $text-hint;
+$uni-bg-color: $card-bg;
+$uni-bg-color-grey: $bg;
+$uni-border-color: $border;

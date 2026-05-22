@@ -1,0 +1,425 @@
+<template>
+	<view class="page">
+		<view class="profile-header">
+			<view class="header-status" :style="{ height: statusBarHeight + 'px' }"></view>
+			<view class="header-content">
+				<view class="avatar-wrap">
+					<view class="avatar">
+						<text class="avatar-text">{{ userInfo.name ? userInfo.name.charAt(0) : '我' }}</text>
+					</view>
+				</view>
+				<text class="user-name">{{ userInfo.name || '未登录' }}</text>
+				<text class="user-info">{{ userInfo.id }} · {{ userInfo.className }}</text>
+			</view>
+		</view>
+
+		<scroll-view scroll-y class="scroll-content">
+			<!-- 功能菜单 -->
+			<view class="menu-section">
+				<view class="menu-item" @click="goPage('password')">
+					<text class="menu-icon">&#128274;</text>
+					<text class="menu-text">修改登录密码</text>
+					<text class="menu-arrow">›</text>
+				</view>
+				<view class="menu-item" @click="goPage('notification')">
+					<text class="menu-icon">&#128276;</text>
+					<text class="menu-text">消息设置</text>
+					<text class="menu-arrow">›</text>
+				</view>
+				<view class="menu-item" @click="goPage('tickets')">
+					<text class="menu-icon">&#128196;</text>
+					<text class="menu-text">我的工单</text>
+					<text class="menu-arrow">›</text>
+				</view>
+			</view>
+
+			<view class="menu-section">
+				<view class="menu-item" @click="goPage('feedback')">
+					<text class="menu-icon">&#128172;</text>
+					<text class="menu-text">意见反馈</text>
+					<text class="menu-arrow">›</text>
+				</view>
+				<view class="menu-item" @click="goPage('about')">
+					<text class="menu-icon">&#9432;</text>
+					<text class="menu-text">关于我们</text>
+					<text class="menu-arrow">›</text>
+				</view>
+			</view>
+
+			<view class="logout-btn" @click="handleLogout">
+				<text>退出登录</text>
+			</view>
+
+			<view class="bottom-space"></view>
+		</scroll-view>
+
+		<custom-tabbar :current="3" :tabs="studentTabs" @change="onTabChange" />
+
+		<!-- 消息设置弹窗 -->
+		<view class="modal-mask" v-if="showNotification" @click="showNotification = false">
+			<view class="modal-wrap" @click.stop>
+				<text class="modal-title">消息设置</text>
+				<view class="setting-row">
+					<text>问答提醒</text>
+					<switch :checked="settings.chatNotify" @change="settings.chatNotify = $event.detail.value" color="#4A90D9" />
+				</view>
+				<view class="setting-row">
+					<text>人工回复提醒</text>
+					<switch :checked="settings.humanNotify" @change="settings.humanNotify = $event.detail.value" color="#4A90D9" />
+				</view>
+				<view class="modal-btn" @click="showNotification = false">
+					<text>确定</text>
+				</view>
+			</view>
+		</view>
+
+		<!-- 修改密码弹窗 -->
+		<view class="modal-mask" v-if="showPassword" @click="showPassword = false">
+			<view class="modal-wrap" @click.stop>
+				<text class="modal-title">修改密码</text>
+				<input class="modal-input" v-model="passwordForm.oldPwd" placeholder="当前密码" :password="true" />
+				<input class="modal-input" v-model="passwordForm.newPwd" placeholder="新密码" :password="true" />
+				<input class="modal-input" v-model="passwordForm.confirmPwd" placeholder="确认新密码" :password="true" />
+				<view class="modal-btn" @click="changePassword">
+					<text>确认修改</text>
+				</view>
+			</view>
+		</view>
+
+		<!-- 意见反馈弹窗 -->
+		<view class="modal-mask" v-if="showFeedback" @click="showFeedback = false">
+			<view class="modal-wrap" @click.stop>
+				<text class="modal-title">意见反馈</text>
+				<textarea class="modal-textarea" v-model="feedbackContent" placeholder="请输入您的意见或建议..." />
+				<view class="modal-btn" @click="submitFeedback">
+					<text>提交</text>
+				</view>
+			</view>
+		</view>
+
+		<!-- 我的工单 -->
+		<view class="modal-mask" v-if="showTickets" @click="showTickets = false">
+			<view class="modal-wrap large" @click.stop>
+				<text class="modal-title">我的工单</text>
+				<view class="ticket-list">
+					<view class="ticket-item" v-for="(t, i) in myTickets" :key="i">
+						<text class="ticket-q">{{ t.question }}</text>
+						<view class="ticket-meta">
+							<text class="ticket-status" :style="{ color: t.statusColor }">{{ t.statusText }}</text>
+							<text class="ticket-time">{{ t.time }}</text>
+						</view>
+					</view>
+				</view>
+				<empty-state v-if="myTickets.length === 0" text="暂无工单" />
+				<view class="modal-btn" @click="showTickets = false">
+					<text>关闭</text>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script>
+import CustomTabbar from '@/common/components/custom-tabbar.vue'
+import EmptyState from '@/common/components/empty-state.vue'
+import store from '@/common/store/index.js'
+import { ticketStatusMap } from '@/common/utils/helper.js'
+
+export default {
+	components: { CustomTabbar, EmptyState },
+	data() {
+		return {
+			statusBarHeight: 0,
+			showNotification: false,
+			showPassword: false,
+			showFeedback: false,
+			showTickets: false,
+			settings: { chatNotify: true, humanNotify: true },
+			passwordForm: { oldPwd: '', newPwd: '', confirmPwd: '' },
+			feedbackContent: '',
+			userInfo: {},
+			myTickets: [
+				{ question: '关于休学申请流程咨询', status: 'pending', statusText: '待受理', statusColor: '#F0AD4E', time: '05-20' },
+				{ question: '宿舍空调报修', status: 'processing', statusText: '处理中', statusColor: '#4A90D9', time: '05-19' },
+				{ question: '奖学金申请条件', status: 'completed', statusText: '已完结', statusColor: '#4CD964', time: '05-18' }
+			],
+			studentTabs: [
+				{ text: '首页', icon: '&#127968;', url: '/subpackages/student/pages/home/index' },
+				{ text: '问答', icon: '&#128172;', url: '/subpackages/student/pages/chat/index' },
+				{ text: '服务', icon: '&#128736;', url: '/subpackages/student/pages/services/index' },
+				{ text: '我的', icon: '&#128100;', url: '/subpackages/profile/pages/student/index' }
+			]
+		}
+	},
+	created() {
+		const sysInfo = uni.getSystemInfoSync()
+		this.statusBarHeight = sysInfo.statusBarHeight || 0
+		this.userInfo = store.state.userInfo || { name: '学生', id: '2026001', className: '计算机2601' }
+	},
+	methods: {
+		goPage(type) {
+			switch (type) {
+				case 'password': this.showPassword = true; break
+				case 'notification': this.showNotification = true; break
+				case 'tickets': this.showTickets = true; break
+				case 'feedback': this.showFeedback = true; break
+				case 'about':
+					uni.showModal({
+						title: '关于AI辅导员',
+						content: '版本：v1.0.0\nAI辅导员小程序为学生提供智能问答、校园服务等功能。',
+						showCancel: false
+					})
+					break
+			}
+		},
+		changePassword() {
+			if (!this.passwordForm.oldPwd || !this.passwordForm.newPwd) {
+				uni.showToast({ title: '请填写完整', icon: 'none' })
+				return
+			}
+			if (this.passwordForm.newPwd !== this.passwordForm.confirmPwd) {
+				uni.showToast({ title: '两次密码不一致', icon: 'none' })
+				return
+			}
+			uni.showToast({ title: '修改成功', icon: 'success' })
+			this.showPassword = false
+			this.passwordForm = { oldPwd: '', newPwd: '', confirmPwd: '' }
+		},
+		submitFeedback() {
+			if (!this.feedbackContent.trim()) {
+				uni.showToast({ title: '请输入反馈内容', icon: 'none' })
+				return
+			}
+			uni.showToast({ title: '提交成功', icon: 'success' })
+			this.showFeedback = false
+			this.feedbackContent = ''
+		},
+		handleLogout() {
+			uni.showModal({
+				title: '确认退出',
+				content: '确定要退出登录吗？',
+				success: (res) => {
+					if (res.confirm) {
+						store.mutations.logout()
+						uni.reLaunch({ url: '/subpackages/login/pages/login' })
+					}
+				}
+			})
+		},
+		onTabChange({ item }) {
+			uni.reLaunch({ url: item.url })
+		}
+	}
+}
+</script>
+
+<style lang="scss" scoped>
+.page {
+	height: 100vh;
+	display: flex;
+	flex-direction: column;
+	background: #F5F6FA;
+}
+
+.profile-header {
+	background: linear-gradient(135deg, #4A90D9, #6BA5E7);
+}
+
+.header-status { background: #4A90D9; }
+
+.header-content {
+	padding: 32rpx;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.avatar-wrap {
+	margin-bottom: 16rpx;
+}
+
+.avatar {
+	width: 120rpx;
+	height: 120rpx;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.3);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: 4rpx solid rgba(255, 255, 255, 0.5);
+}
+
+.avatar-text {
+	font-size: 44rpx;
+	color: #FFF;
+	font-weight: 600;
+}
+
+.user-name {
+	font-size: 34rpx;
+	color: #FFF;
+	font-weight: 600;
+	margin-bottom: 8rpx;
+}
+
+.user-info {
+	font-size: 24rpx;
+	color: rgba(255, 255, 255, 0.8);
+}
+
+.scroll-content {
+	flex: 1;
+	height: 0;
+	padding-bottom: 140rpx;
+}
+
+.menu-section {
+	margin: 24rpx 24rpx 0;
+	background: #FFF;
+	border-radius: 16rpx;
+	overflow: hidden;
+}
+
+.menu-item {
+	display: flex;
+	align-items: center;
+	padding: 28rpx 24rpx;
+	border-bottom: 1rpx solid #F5F5F5;
+	&:last-child { border-bottom: none; }
+}
+
+.menu-icon {
+	font-size: 36rpx;
+	width: 48rpx;
+	text-align: center;
+	margin-right: 16rpx;
+}
+
+.menu-text {
+	flex: 1;
+	font-size: 28rpx;
+	color: #333;
+}
+
+.menu-arrow {
+	font-size: 32rpx;
+	color: #CCC;
+}
+
+.logout-btn {
+	margin: 40rpx 24rpx 0;
+	height: 88rpx;
+	background: #FFF;
+	border-radius: 12rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 30rpx;
+	color: #DD524D;
+}
+
+.bottom-space { height: 40rpx; }
+
+.modal-mask {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.4);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1000;
+}
+
+.modal-wrap {
+	width: 600rpx;
+	max-height: 80vh;
+	background: #FFF;
+	border-radius: 20rpx;
+	padding: 40rpx;
+	overflow-y: auto;
+	&.large { width: 660rpx; }
+}
+
+.modal-title {
+	font-size: 32rpx;
+	font-weight: 600;
+	color: #333;
+	display: block;
+	margin-bottom: 24rpx;
+}
+
+.modal-input {
+	height: 76rpx;
+	background: #F5F6FA;
+	border-radius: 12rpx;
+	padding: 0 20rpx;
+	font-size: 26rpx;
+	margin-bottom: 16rpx;
+}
+
+.modal-textarea {
+	width: 100%;
+	height: 200rpx;
+	background: #F5F6FA;
+	border-radius: 12rpx;
+	padding: 20rpx;
+	font-size: 26rpx;
+	margin-bottom: 16rpx;
+	box-sizing: border-box;
+}
+
+.setting-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 20rpx 0;
+	border-bottom: 1rpx solid #F5F5F5;
+	font-size: 28rpx;
+	color: #333;
+}
+
+.modal-btn {
+	height: 76rpx;
+	background: #4A90D9;
+	border-radius: 12rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #FFF;
+	font-size: 28rpx;
+	margin-top: 16rpx;
+}
+
+.ticket-list {
+	margin-bottom: 16rpx;
+}
+
+.ticket-item {
+	padding: 16rpx 0;
+	border-bottom: 1rpx solid #F5F5F5;
+}
+
+.ticket-q {
+	font-size: 26rpx;
+	color: #333;
+	display: block;
+	margin-bottom: 8rpx;
+}
+
+.ticket-meta {
+	display: flex;
+	justify-content: space-between;
+}
+
+.ticket-status {
+	font-size: 22rpx;
+}
+
+.ticket-time {
+	font-size: 22rpx;
+	color: #999;
+}
+</style>

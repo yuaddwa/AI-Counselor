@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "通知推送",
+  "usingComponents": {
+    "empty-state": "../../../../common/components/empty-state"
+  }
+}

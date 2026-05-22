@@ -1,0 +1,278 @@
+<template>
+	<view class="page">
+		<view class="orders-header">
+			<view class="header-status" :style="{ height: statusBarHeight + 'px' }"></view>
+			<view class="header-bar">
+				<text class="header-title">工单管理</text>
+			</view>
+			<!-- 状态筛选 -->
+			<view class="filter-tabs">
+				<view
+					class="filter-tab"
+					v-for="(tab, i) in statusTabs"
+					:key="i"
+					:class="{ active: activeStatus === tab.value }"
+					@click="activeStatus = tab.value"
+				>
+					<text>{{ tab.label }}</text>
+				</view>
+			</view>
+		</view>
+
+		<scroll-view scroll-y class="scroll-content">
+			<!-- 筛选栏 -->
+			<view class="filter-bar">
+				<picker :range="classOptions" @change="onClassChange" :value="classIndex">
+					<view class="filter-item">
+						<text>{{ selectedClass || '班级筛选' }}</text>
+						<text class="filter-arrow">‹</text>
+					</view>
+				</picker>
+				<picker :range="typeOptions" @change="onTypeChange" :value="typeIndex">
+					<view class="filter-item">
+						<text>{{ selectedType || '问题类型' }}</text>
+						<text class="filter-arrow">‹</text>
+					</view>
+				</picker>
+				<input class="filter-search" v-model="searchKeyword" placeholder="关键词搜索" />
+			</view>
+
+			<!-- 工单列表 -->
+			<view class="order-list">
+				<work-order-card
+					v-for="(order, i) in filteredOrders"
+					:key="i"
+					:order="order"
+					@click="goDetail(order)"
+				/>
+			</view>
+
+			<empty-state v-if="filteredOrders.length === 0" text="暂无工单" />
+
+			<!-- 历史归档 -->
+			<view class="archive-bar" @click="toggleArchive">
+				<text>{{ showArchive ? '收起历史' : '查看历史归档' }}</text>
+			</view>
+
+			<view class="order-list" v-if="showArchive">
+				<work-order-card
+					v-for="(order, i) in archivedOrders"
+					:key="'a' + i"
+					:order="order"
+					@click="goDetail(order)"
+				/>
+			</view>
+
+			<view class="bottom-space"></view>
+		</scroll-view>
+
+		<custom-tabbar :current="2" :tabs="counselorTabs" @change="onTabChange" />
+	</view>
+</template>
+
+<script>
+import CustomTabbar from '@/common/components/custom-tabbar.vue'
+import WorkOrderCard from '@/common/components/work-order-card.vue'
+import EmptyState from '@/common/components/empty-state.vue'
+
+export default {
+	components: { CustomTabbar, WorkOrderCard, EmptyState },
+	data() {
+		return {
+			statusBarHeight: 0,
+			activeStatus: 'all',
+			searchKeyword: '',
+			selectedClass: '',
+			selectedType: '',
+			showClassFilter: false,
+			showTypeFilter: false,
+			showArchive: false,
+			statusTabs: [
+				{ label: '全部', value: 'all' },
+				{ label: '待处理', value: 'pending' },
+				{ label: '处理中', value: 'processing' },
+				{ label: '已完结', value: 'completed' }
+			],
+			orders: [
+				{ id: 1, studentId: '2026001', studentName: '张同学', className: '计算机2601', question: '关于休学申请的流程咨询', status: 'pending', createTime: '05-20 14:30', type: '政策咨询' },
+				{ id: 2, studentId: '2026002', studentName: '李同学', className: '计算机2602', question: '宿舍空调漏水需要报修', status: 'pending', createTime: '05-20 13:15', type: '后勤报修' },
+				{ id: 3, studentId: '2026003', studentName: '王同学', className: '经管2601', question: '近期情绪低落，想找人聊聊', status: 'processing', createTime: '05-20 10:00', type: '心理问题' },
+				{ id: 4, studentId: '2026004', studentName: '赵同学', className: '外语2601', question: '助学金申请需要哪些材料', status: 'completed', createTime: '05-19 16:00', type: '政策咨询' }
+			],
+			archivedOrders: [
+				{ id: 100, studentId: '2025001', studentName: '陈同学', className: '计算机2501', question: '考试成绩复核申请', status: 'completed', createTime: '04-20 10:00', type: '教务问题' }
+			],
+			classOptions: ['全部班级', '计算机2601', '计算机2602', '经管2601', '外语2601'],
+			classIndex: 0,
+				typeOptions: ["全部类型", "政策咨询", "后勤报修", "心理问题", "教务问题"],
+				typeIndex: 0,
+			counselorTabs: [
+					{ text: '工作台', icon: '', url: '/subpackages/counselor/pages/workspace/index' },
+					{ text: '知识库', icon: '', url: '/subpackages/counselor/pages/knowledge/index' },
+					{ text: '工单', icon: '', url: '/subpackages/counselor/pages/orders/index' },
+					{ text: '数据', icon: '', url: '/subpackages/counselor/pages/data/index' },
+					{ text: '我的', icon: '', url: '/subpackages/profile/pages/counselor/index' }
+				]
+		}
+	},
+	computed: {
+		filteredOrders() {
+			let list = this.orders
+			if (this.activeStatus !== 'all') {
+				list = list.filter(o => o.status === this.activeStatus)
+			}
+			if (this.selectedClass) {
+				list = list.filter(o => o.className === this.selectedClass)
+			}
+			if (this.selectedType) {
+				list = list.filter(o => o.type === this.selectedType)
+			}
+			if (this.searchKeyword) {
+				list = list.filter(o => o.question.includes(this.searchKeyword) || o.studentName.includes(this.searchKeyword))
+			}
+			return list
+		}
+	},
+	created() {
+		const sysInfo = uni.getSystemInfoSync()
+		this.statusBarHeight = sysInfo.statusBarHeight || 0
+	},
+	methods: {
+		goDetail(order) {
+			uni.navigateTo({ url: `/subpackages/counselor/pages/orders/detail/index?id=${order.id}` })
+		},
+		onTypeChange(e) {
+			const idx = e.detail.value
+			this.selectedType = idx === 0 ? "" : this.typeOptions[idx]
+		},
+			onClassChange(e) {
+			const idx = e.detail.value
+			this.selectedClass = idx === 0 ? '' : this.classOptions[idx]
+			this.showClassFilter = false
+		},
+		toggleArchive() {
+			this.showArchive = !this.showArchive
+		},
+		onTabChange({ item }) {
+			uni.reLaunch({ url: item.url })
+		}
+	}
+}
+</script>
+
+<style lang="scss" scoped>
+.page {
+	height: 100vh;
+	display: flex;
+	flex-direction: column;
+	background: #F5F6FA;
+}
+
+.orders-header {
+	background: linear-gradient(135deg, #4A90D9 0%, #6BA5E7 50%, #4A90D9 100%);
+	background-size: 200% 200%;
+}
+.header-status { background: #4A90D9; }
+
+.header-bar {
+	height: 88rpx;
+	display: flex;
+	align-items: center;
+	padding: 0 32rpx;
+}
+
+.header-title {
+	font-size: 38rpx;
+	color: #FFF;
+	font-weight: 600;
+}
+
+.filter-tabs {
+	display: flex;
+	padding: 0 24rpx 16rpx;
+}
+
+.filter-tab {
+	flex: 1;
+	text-align: center;
+	height: 64rpx;
+	line-height: 64rpx;
+	font-size: 26rpx;
+	color: rgba(255, 255, 255, 0.7);
+	border-radius: 8rpx;
+	transition: all 0.3s ease;
+	&.active {
+		background: rgba(255, 255, 255, 0.2);
+		color: #FFF;
+	}
+}
+
+.scroll-content {
+	flex: 1;
+	height: 0;
+	padding-bottom: 140rpx;
+}
+
+.filter-bar {
+	display: flex;
+	align-items: center;
+	padding: 16rpx 24rpx;
+	gap: 12rpx;
+}
+
+.filter-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12rpx 20rpx;
+	background: #FFF;
+	border-radius: 12rpx;
+	font-size: 24rpx;
+	color: #666;
+	min-width: 160rpx;
+	transition: transform 0.15s ease;
+	&:active { transform: scale(0.96); }
+}
+
+.filter-arrow-down {
+	width: 16rpx;
+	height: 16rpx;
+	border-right: 2rpx solid rgba(255,255,255,0.7);
+	border-bottom: 2rpx solid rgba(255,255,255,0.7);
+	transform: rotate(45deg);
+	transition: transform 0.3s ease;
+}
+
+.filter-arrow {
+	color: #CCC;
+	font-size: 28rpx;
+	transform: rotate(-90deg);
+}
+
+.filter-search {
+	flex: 1;
+	height: 64rpx;
+	background: #FFF;
+	border-radius: 12rpx;
+	padding: 0 20rpx;
+	font-size: 24rpx;
+}
+
+.order-list {
+	padding: 0 24rpx;
+}
+
+.archive-bar {
+	text-align: center;
+	padding: 24rpx;
+	font-size: 26rpx;
+	color: #4A90D9;
+	transition: color 0.2s ease;
+	&:active { color: #3A7CC5; }
+}
+
+.bottom-space { height: 40rpx; }
+
+
+
+</style>

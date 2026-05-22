@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "我的",
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "empty-state": "../../../../common/components/empty-state"
+  }
+}

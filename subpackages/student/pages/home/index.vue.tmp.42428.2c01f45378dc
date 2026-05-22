@@ -1,0 +1,703 @@
+<template>
+	<view class="page">
+		<view class="home-header">
+			<view class="header-status" :style="{ height: statusBarHeight + 'px' }"></view>
+			<view class="header-bar">
+				<text class="header-title">AI辅导员</text>
+				<view class="header-actions">
+					<text class="header-btn" @click="goServices">服务</text>
+					<view class="header-notice" @click="goNotices">
+						<text class="notice-icon"> </text>
+						</view>
+					<text class="header-btn" @click="goProfile">我的</text>
+				</view>
+			</view>
+		</view>
+
+		<!-- 快捷问答 -->
+		<scroll-view scroll-y class="chat-area" :scroll-top="scrollTop" :scroll-with-animation="true">
+			<!-- 欢迎语 -->
+			<view class="welcome-card" v-if="messages.length === 0">
+				<text class="welcome-title">你好，我是AI辅导员</text>
+				<text class="welcome-desc">有什么问题可以问我，或点击下方标签快速提问</text>
+				<view class="quick-tags">
+					<view class="quick-tag" v-for="(tag, i) in quickTags" :key="i" @click="sendQuick(tag)">
+						<text>{{ tag }}</text>
+					</view>
+				</view>
+			</view>
+
+			<!-- 聊天消息 -->
+			<view class="chat-messages">
+				<view
+					class="message-item"
+					v-for="(msg, i) in messages"
+					:key="i"
+					:class="{ 'message-self': msg.role === 'user' }"
+				>
+					<view class="message-avatar" v-if="msg.role === 'ai'">
+						<text class="avatar-ai">AI</text>
+					</view>
+					<view class="message-bubble" :class="{ 'bubble-self': msg.role === 'user' }">
+						<text class="message-text">{{ msg.content }}</text>
+						<view class="message-source" v-if="msg.source && msg.role === 'ai'">
+							<text>来源：{{ msg.source }}</text>
+						</view>
+						<view class="message-actions" v-if="msg.role === 'ai' && !msg.loading">
+							<view class="action-btn" @click="likeMsg(msg)">
+								<text :class="{ liked: msg.liked }"></text>
+							</view>
+							<view class="action-btn" @click="dislikeMsg(msg)">
+								<text :class="{ disliked: msg.disliked }"></text>
+							</view>
+						</view>
+						<view class="typing-indicator" v-if="msg.loading">
+							<view class="dot"></view>
+							<view class="dot"></view>
+							<view class="dot"></view>
+						</view>
+					</view>
+					<view class="message-avatar" v-if="msg.role === 'user'">
+						<text class="avatar-user">我</text>
+					</view>
+				</view>
+			</view>
+
+			<!-- 转人工 -->
+			<view class="transfer-human" v-if="showTransfer">
+				<text class="transfer-text">没有找到答案？</text>
+				<view class="transfer-btn" @click="transferToHuman">
+					<text>转人工服务</text>
+				</view>
+			</view>
+		</scroll-view>
+
+		<!-- 输入区 -->
+		<view class="input-bar">
+			<view class="voice-btn" @click="toggleVoiceMode">
+				<text class="voice-icon">{{ voiceMode ? '⌨' : ' ' }}</text>
+			</view>
+			<view class="input-box" v-if="!voiceMode">
+				<input
+					class="chat-input"
+					v-model="inputText"
+					placeholder="请输入您的问题..."
+					confirm-type="send"
+					@confirm="sendMessage"
+					:adjust-position="false"
+				/>
+			</view>
+			<view class="voice-box" v-else @touchstart="startVoice" @touchmove="moveVoice" @touchend="stopVoice">
+				<text class="voice-hold-text" :class="{ recording: isRecording, cancel: willCancel }">{{ isRecording ? (willCancel ? '松开取消' : '松开发送') : '按住说话' }}</text>
+			</view>
+			<view class="send-btn" v-if="!voiceMode" @click="sendMessage" :class="{ active: inputText.trim() }">
+				<text class="send-icon">✓</text>
+			</view>
+		</view>
+
+		<!-- 录音动画 -->
+		<view class="recording-overlay" v-if="isRecording">
+			<view class="recording-popup">
+				<view class="recording-wave">
+					<view class="wave-bar" v-for="n in 5" :key="n"></view>
+				</view>
+				<text class="recording-text">{{ willCancel ? '松开取消录音' : '正在录音...' }}</text>
+			</view>
+			<view class="cancel-zone" :class="{ 'cancel-active': willCancel }">
+				<text class="cancel-zone-text">{{ willCancel ? '松开取消发送' : '上滑取消发送' }}</text>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script>
+import store from '@/common/store/index.js'
+
+export default {
+	data() {
+		return {
+			statusBarHeight: 0,
+			scrollTop: 0,
+			inputText: '',
+			messages: [],
+			isRecording: false,
+			voiceMode: false,
+				willCancel: false,
+				voiceStartY: 0,
+			showTransfer: false,
+			quickTags: ['新生报到', '宿舍后勤', '缴费', '奖助', '请假', '军训'],
+			announcements: [
+				{ id: 1, title: '2026年秋季学期开学报到须知', time: '05-20', read: false },
+				{ id: 2, title: '关于国庆节放假安排的通知', time: '05-18', read: false },
+				{ id: 3, title: '图书馆暑期开放时间调整', time: '05-15', read: true }
+			],
+		}
+	},
+	computed: {
+		unreadCount() {
+			return this.announcements.filter(a => !a.read).length
+		}
+	},
+	created() {
+		const windowInfo = uni.getWindowInfo()
+		this.statusBarHeight = windowInfo.statusBarHeight || 0
+	},
+	methods: {
+		scrollToBottom() {
+			this.$nextTick(() => {
+				this.scrollTop = this.messages.length * 1000
+			})
+		},
+		sendQuick(tag) {
+			this.inputText = tag
+			this.sendMessage()
+		},
+		sendMessage() {
+			const text = this.inputText.trim()
+			if (!text) return
+
+			this.messages.push({
+				role: 'user',
+				content: text,
+				time: Date.now()
+			})
+			this.inputText = ''
+			this.scrollToBottom()
+
+			const aiMsg = {
+				role: 'ai',
+				content: '',
+				source: '新生入学指南',
+				loading: true,
+				liked: false,
+				disliked: false,
+				time: Date.now()
+			}
+			this.messages.push(aiMsg)
+			this.scrollToBottom()
+
+			const reply = `关于"${text}"的问题，根据学校相关规定：\n\n1. 请携带相关证件到对应部门办理\n2. 办公时间：周一至周五 8:30-17:00\n3. 如需进一步帮助，可联系辅导员\n\n更多详情请查看办事指南或联系人工客服。`
+			let index = 0
+			aiMsg.loading = false
+			const timer = setInterval(() => {
+				if (index < reply.length) {
+					aiMsg.content += reply[index]
+					index++
+					this.scrollToBottom()
+				} else {
+					clearInterval(timer)
+					this.showTransfer = true
+				}
+			}, 30)
+		},
+		likeMsg(msg) {
+			msg.liked = !msg.liked
+			if (msg.liked) msg.disliked = false
+		},
+		dislikeMsg(msg) {
+			msg.disliked = !msg.disliked
+			if (msg.disliked) msg.liked = false
+		},
+		toggleVoiceMode() {
+				this.voiceMode = !this.voiceMode
+			},
+			startVoice(e) {
+			this.isRecording = true
+			this.willCancel = false
+			this.voiceStartY = e.touches[0].clientY
+		},
+		stopVoice() {
+			if (!this.isRecording) return
+			const cancelled = this.willCancel
+			this.isRecording = false
+			this.willCancel = false
+			if (cancelled) {
+				uni.showToast({ title: '已取消', icon: 'none' })
+			} else {
+				uni.showToast({ title: '语音识别中...', icon: 'loading' })
+			}
+		},
+		moveVoice(e) {
+			if (!this.isRecording) return
+			const moveY = e.touches[0].clientY
+			if (this.voiceStartY - moveY > 60) {
+				this.willCancel = true
+			} else {
+				this.willCancel = false
+			}
+		},
+		transferToHuman() {
+			uni.showModal({
+				title: '转人工服务',
+				content: '确认将当前对话转为人工服务？辅导员会尽快为您处理。',
+				success: (res) => {
+					if (res.confirm) {
+						uni.showToast({ title: '已提交工单', icon: 'success' })
+					}
+				}
+			})
+		},
+		goNotices() {
+			uni.navigateTo({ url: '/subpackages/student/pages/services/notices/index' })
+		},
+		goServices() {
+			uni.navigateTo({ url: '/subpackages/student/pages/services/index' })
+		},
+		goProfile() {
+			uni.navigateTo({ url: '/subpackages/profile/pages/student/index' })
+		}
+	}
+}
+</script>
+
+<style lang="scss" scoped>
+.page {
+	height: 100vh;
+	display: flex;
+	flex-direction: column;
+	background: #F5F6FA;
+}
+
+.home-header {
+	background: linear-gradient(180deg, #E8F4FD, #F0F8FF);
+	background-size: 200% 200%;
+	animation: headerShimmer 6s ease infinite;
+	flex-shrink: 0;
+}
+
+@keyframes headerShimmer {
+	0%, 100% { background-position: 0% 50%; }
+	50% { background-position: 100% 50%; }
+}
+
+.header-status { background: #E8F4FD; }
+
+.header-bar {
+	height: 88rpx;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 32rpx;
+}
+
+.header-title {
+	font-size: 38rpx;
+	color: #5B9BD5;
+	font-weight: 600;
+}
+
+.header-actions {
+	display: flex;
+	align-items: center;
+	gap: 16rpx;
+	padding-right: 200rpx;
+}
+
+.header-btn {
+	font-size: 26rpx;
+	color: rgba(91, 155, 213, 0.85);
+	padding: 8rpx 16rpx;
+}
+
+.header-notice {
+	position: relative;
+	padding: 10rpx;
+}
+
+.notice-icon { font-size: 40rpx; }
+
+.notice-dot {
+	position: absolute;
+	top: 6rpx;
+	right: 6rpx;
+	width: 16rpx;
+	height: 16rpx;
+	background: #DD524D;
+	border-radius: 50%;
+	animation: dotPulse 2s ease infinite;
+}
+
+@keyframes dotPulse {
+	0%, 100% { transform: scale(1); opacity: 1; }
+	50% { transform: scale(1.4); opacity: 0.7; }
+}
+
+.chat-area {
+	flex: 1;
+	height: 0;
+	padding: 20rpx;
+}
+
+/* 欢迎卡片 */
+.welcome-card {
+	background: #FFF;
+	border-radius: 16rpx;
+	padding: 40rpx 32rpx;
+	margin-bottom: 20rpx;
+	animation: fadeSlideUp 0.5s ease both;
+}
+
+.welcome-title {
+	font-size: 34rpx;
+	font-weight: 600;
+	color: #333;
+	display: block;
+	margin-bottom: 12rpx;
+}
+
+.welcome-desc {
+	font-size: 26rpx;
+	color: #999;
+	display: block;
+	margin-bottom: 24rpx;
+}
+
+.quick-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16rpx;
+}
+
+.quick-tag {
+	padding: 12rpx 28rpx;
+	background: #EEF4FB;
+	border-radius: 28rpx;
+	font-size: 26rpx;
+	color: #5B9BD5;
+	animation: fadeSlideUp 0.4s ease both;
+	&:nth-child(1) { animation-delay: 0.1s; }
+	&:nth-child(2) { animation-delay: 0.15s; }
+	&:nth-child(3) { animation-delay: 0.2s; }
+	&:nth-child(4) { animation-delay: 0.25s; }
+	&:nth-child(5) { animation-delay: 0.3s; }
+	&:nth-child(6) { animation-delay: 0.35s; }
+	transition: transform 0.2s ease, background 0.2s ease;
+	&:active { transform: scale(0.95); background: #D6E8F7; }
+}
+
+/* 聊天消息 */
+.chat-messages {
+	display: flex;
+	flex-direction: column;
+}
+
+.message-item {
+	display: flex;
+	align-items: flex-start;
+	margin-bottom: 24rpx;
+	animation: msgSlideIn 0.35s ease both;
+	&.message-self {
+		justify-content: flex-end;
+		animation-name: msgSlideInRight;
+	}
+}
+
+.message-avatar {
+	flex-shrink: 0;
+	margin-right: 12rpx;
+	.message-self & {
+		margin-right: 0;
+		margin-left: 12rpx;
+	}
+}
+
+.avatar-ai {
+	display: flex;
+	width: 64rpx;
+	height: 64rpx;
+	border-radius: 50%;
+	background: #4A90D9;
+	color: #FFF;
+	font-size: 22rpx;
+	align-items: center;
+	justify-content: center;
+	font-weight: 600;
+}
+
+.avatar-user {
+	display: flex;
+	width: 64rpx;
+	height: 64rpx;
+	border-radius: 50%;
+	background: #4CD964;
+	color: #FFF;
+	font-size: 22rpx;
+	align-items: center;
+	justify-content: center;
+}
+
+.message-bubble {
+	max-width: 70%;
+	background: #FFFFFF;
+	border-radius: 16rpx;
+	padding: 20rpx 24rpx;
+	box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+	&.bubble-self {
+		background: #4A90D9;
+		.message-text { color: #FFF; }
+	}
+}
+
+.message-text {
+	font-size: 28rpx;
+	color: #333;
+	line-height: 1.6;
+	word-break: break-all;
+}
+
+.message-source {
+	margin-top: 12rpx;
+	padding-top: 12rpx;
+	border-top: 1rpx solid #F0F0F0;
+	font-size: 22rpx;
+	color: #999;
+}
+
+.message-actions {
+	display: flex;
+	margin-top: 12rpx;
+	padding-top: 12rpx;
+	border-top: 1rpx solid #F0F0F0;
+	gap: 20rpx;
+}
+
+.action-btn {
+	font-size: 28rpx;
+	.liked { color: #5B9BD5; }
+	.disliked { color: #DD524D; }
+}
+
+.typing-indicator {
+	display: flex;
+	gap: 8rpx;
+	padding: 8rpx 0;
+}
+
+.dot {
+	width: 12rpx;
+	height: 12rpx;
+	border-radius: 50%;
+	background: #CCC;
+	animation: dotBlink 1.4s infinite;
+	&:nth-child(2) { animation-delay: 0.2s; }
+	&:nth-child(3) { animation-delay: 0.4s; }
+}
+
+@keyframes dotBlink {
+	0%, 80%, 100% { opacity: 0.3; }
+	40% { opacity: 1; }
+}
+
+@keyframes cancelShake {
+	0%, 100% { transform: translateX(0); }
+	25% { transform: translateX(-6rpx); }
+	75% { transform: translateX(6rpx); }
+}
+
+.transfer-human {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24rpx;
+	gap: 16rpx;
+	animation: fadeSlideUp 0.4s ease both;
+}
+
+.transfer-text {
+	font-size: 24rpx;
+	color: #999;
+}
+
+.transfer-btn {
+	padding: 12rpx 28rpx;
+	background: #F0AD4E;
+	border-radius: 28rpx;
+	font-size: 24rpx;
+	color: #FFF;
+	transition: transform 0.2s ease;
+	&:active { transform: scale(0.93); }
+}
+
+/* 输入区 */
+.input-bar {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	padding: 16rpx 24rpx;
+	padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
+	background: #FFF;
+	box-shadow: 0 -4rpx 20rpx rgba(91, 155, 213, 0.08);
+	animation: slideUp 0.4s ease both;
+	gap: 16rpx;
+}
+
+.voice-btn {
+	width: 80rpx;
+	height: 80rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: linear-gradient(135deg, #E8F4FD, #F0F8FF);
+	border-radius: 50%;
+	border: 2rpx solid rgba(91, 155, 213, 0.2);
+	flex-shrink: 0;
+	transition: all 0.2s ease;
+	&:active { transform: scale(0.9); background: #D6E8F7; }
+}
+
+.voice-icon {
+	font-size: 36rpx;
+	&.recording {
+		color: #DD524D;
+		animation: recordPulse 0.6s ease infinite;
+	}
+}
+
+.input-box {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	height: 80rpx;
+	background: linear-gradient(135deg, #F0F8FF, #F5F9FE);
+	border-radius: 40rpx;
+	padding: 0 28rpx;
+	border: 2rpx solid rgba(91, 155, 213, 0.15);
+	transition: border-color 0.3s ease;
+}
+
+.voice-box {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 80rpx;
+	background: linear-gradient(135deg, #F0F8FF, #F5F9FE);
+	border-radius: 40rpx;
+	border: 2rpx solid rgba(91, 155, 213, 0.15);
+	transition: all 0.2s ease;
+	&:active {
+		background: linear-gradient(135deg, #D6E8F7, #E8F4FD);
+		border-color: rgba(91, 155, 213, 0.4);
+	}
+}
+
+.voice-hold-text {
+	font-size: 28rpx;
+	color: #5B9BD5;
+	&.recording {
+		color: #DD524D;
+		animation: recordPulse 0.6s ease infinite;
+	}
+	&.cancel {
+		color: #FF3B30;
+		animation: cancelShake 0.3s ease infinite;
+	}
+}
+
+.chat-input {
+	flex: 1;
+	height: 100%;
+	font-size: 28rpx;
+	color: #333;
+}
+
+.send-btn {
+	width: 80rpx;
+	height: 80rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: linear-gradient(135deg, #D0E3F0, #E0ECF5);
+	border-radius: 50%;
+	flex-shrink: 0;
+	transition: all 0.3s ease;
+	&.active {
+		background: linear-gradient(135deg, #5B9BD5, #7BB8E8);
+		box-shadow: 0 4rpx 16rpx rgba(91, 155, 213, 0.35);
+		animation: sendPulse 2s ease infinite;
+	}
+	&:active { transform: scale(0.88); }
+}
+
+.send-icon {
+	font-size: 36rpx;
+	color: #FFF;
+	font-weight: 700;
+}
+
+/* 录音动画 */
+.recording-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.4);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1000;
+}
+
+.recording-popup {
+	background: rgba(0, 0, 0, 0.75);
+	border-radius: 20rpx;
+	padding: 60rpx 80rpx;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.recording-wave {
+	display: flex;
+	gap: 8rpx;
+	margin-bottom: 20rpx;
+}
+
+.wave-bar {
+	width: 6rpx;
+	height: 40rpx;
+	background: #FFF;
+	border-radius: 3rpx;
+	animation: wave 0.8s infinite ease-in-out;
+	&:nth-child(2) { animation-delay: 0.1s; height: 50rpx; }
+	&:nth-child(3) { animation-delay: 0.2s; height: 60rpx; }
+	&:nth-child(4) { animation-delay: 0.3s; height: 50rpx; }
+	&:nth-child(5) { animation-delay: 0.4s; }
+}
+
+@keyframes wave {
+	0%, 100% { transform: scaleY(0.6); }
+	50% { transform: scaleY(1.2); }
+}
+
+.recording-text {
+	color: #FFF;
+	font-size: 26rpx;
+}
+
+@keyframes fadeSlideUp {
+	from { opacity: 0; transform: translateY(30rpx); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+	from { opacity: 0; transform: translateY(100%); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes msgSlideIn {
+	from { opacity: 0; transform: translateX(-30rpx); }
+	to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes msgSlideInRight {
+	from { opacity: 0; transform: translateX(30rpx); }
+	to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes sendPulse {
+	0%, 100% { box-shadow: 0 0 0 0 rgba(91, 155, 213, 0.4); }
+	50% { box-shadow: 0 0 0 10rpx rgba(91, 155, 213, 0); }
+}
+</style>

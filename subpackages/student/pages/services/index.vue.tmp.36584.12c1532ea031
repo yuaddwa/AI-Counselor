@@ -1,0 +1,331 @@
+<template>
+	<view class="page">
+		<view class="services-header">
+			<view class="header-status" :style="{ height: statusBarHeight + 'px' }"></view>
+			<view class="header-bar">
+				<text class="header-title">校园服务</text>
+			</view>
+			<!-- 顶部Tab -->
+			<view class="header-tabs">
+				<view
+					class="header-tab"
+					v-for="(tab, i) in tabs"
+					:key="i"
+					:class="{ active: activeTab === i }"
+					@click="activeTab = i"
+				>
+					<text>{{ tab }}</text>
+				</view>
+			</view>
+		</view>
+
+		<scroll-view scroll-y class="scroll-content">
+			<!-- 办事指南 -->
+			<view v-if="activeTab === 0" class="tab-content">
+				<view
+					class="guide-item"
+					v-for="(item, i) in guides"
+					:key="i"
+					@click="goGuideDetail(item)"
+				>
+					<view class="guide-icon" :style="{ background: item.bg }">
+						<text>{{ item.icon }}</text>
+					</view>
+					<view class="guide-info">
+						<text class="guide-name">{{ item.name }}</text>
+						<text class="guide-desc">{{ item.desc }}</text>
+					</view>
+					<text class="guide-arrow">›</text>
+				</view>
+			</view>
+
+			<!-- 校园工具 -->
+			<view v-if="activeTab === 1" class="tab-content">
+				<view class="tool-grid">
+					<view class="tool-item" @click="goCampusMap">
+						<view class="tool-icon-wrap" style="background: #E8F4FD">
+							<text>&#128506;</text>
+						</view>
+						<text class="tool-name">校园地图</text>
+					</view>
+					<view class="tool-item" @click="goPhonebook">
+						<view class="tool-icon-wrap" style="background: #FFF3E0">
+							<text>&#128222;</text>
+						</view>
+						<text class="tool-name">常用电话</text>
+					</view>
+				</view>
+			</view>
+
+			<!-- 通知中心 -->
+			<view v-if="activeTab === 2" class="tab-content">
+				<view
+					class="notice-item"
+					v-for="(item, i) in notices"
+					:key="i"
+					@click="goNoticeDetail(item)"
+				>
+					<view class="notice-left">
+						<view class="notice-dot" v-if="!item.read"></view>
+						<view class="notice-content">
+							<text class="notice-title">{{ item.title }}</text>
+							<text class="notice-time">{{ item.time }}</text>
+						</view>
+					</view>
+					<text class="notice-arrow">›</text>
+				</view>
+			</view>
+		</scroll-view>
+
+		<custom-tabbar :current="2" :tabs="studentTabs" @change="onTabChange" />
+	</view>
+</template>
+
+<script>
+import CustomTabbar from '@/common/components/custom-tabbar.vue'
+
+export default {
+	components: { CustomTabbar },
+	data() {
+		return {
+			statusBarHeight: 0,
+			activeTab: 0,
+			tabs: ['办事指南', '校园工具', '通知中心'],
+			guides: [
+				{ name: '教务办理', desc: '选课、成绩查询、学籍变动', icon: '&#128218;', bg: '#E8F4FD' },
+				{ name: '财务缴费', desc: '学费、住宿费在线缴费', icon: '&#128176;', bg: '#E8F8E8' },
+				{ name: '后勤服务', desc: '宿舍报修、水电充值', icon: '&#127968;', bg: '#FFF3E0' },
+				{ name: '社团申请', desc: '社团创建、活动审批', icon: '&#127891;', bg: '#F3E8FD' },
+				{ name: '医保报销', desc: '就医报销、医保卡办理', icon: '&#127973;', bg: '#FFE8E8' },
+				{ name: '就业服务', desc: '就业协议、简历指导', icon: '&#128188;', bg: '#E8FFF3' }
+			],
+			notices: [
+				{ id: 1, title: '2026年秋季学期开学报到须知', time: '05-20', read: false },
+				{ id: 2, title: '关于国庆节放假安排的通知', time: '05-18', read: false },
+				{ id: 3, title: '图书馆暑期开放时间调整', time: '05-15', read: true },
+				{ id: 4, title: '校园卡系统升级维护公告', time: '05-12', read: true }
+			],
+			studentTabs: [
+				{ text: '首页', icon: '&#127968;', url: '/subpackages/student/pages/home/index' },
+				{ text: '问答', icon: '&#128172;', url: '/subpackages/student/pages/chat/index' },
+				{ text: '服务', icon: '&#128736;', url: '/subpackages/student/pages/services/index' },
+				{ text: '我的', icon: '&#128100;', url: '/subpackages/profile/pages/student/index' }
+			]
+		}
+	},
+	created() {
+		const sysInfo = uni.getSystemInfoSync()
+		this.statusBarHeight = sysInfo.statusBarHeight || 0
+	},
+	methods: {
+		goGuideDetail(item) {
+			uni.navigateTo({ url: `/subpackages/student/pages/services/guide-detail/index?name=${encodeURIComponent(item.name)}` })
+		},
+		goCampusMap() {
+			uni.navigateTo({ url: '/subpackages/student/pages/services/campus-map/index' })
+		},
+		goPhonebook() {
+			uni.navigateTo({ url: '/subpackages/student/pages/services/phonebook/index' })
+		},
+		goNoticeDetail(item) {
+			item.read = true
+			uni.navigateTo({ url: `/subpackages/student/pages/services/notices/index?id=${item.id}` })
+		},
+		onTabChange({ item }) {
+			uni.reLaunch({ url: item.url })
+		}
+	}
+}
+</script>
+
+<style lang="scss" scoped>
+.page {
+	height: 100vh;
+	display: flex;
+	flex-direction: column;
+	background: #F5F6FA;
+}
+
+.services-header {
+	background: #4A90D9;
+	flex-shrink: 0;
+}
+
+.header-status { background: #4A90D9; }
+
+.header-bar {
+	height: 88rpx;
+	display: flex;
+	align-items: center;
+	padding: 0 32rpx;
+}
+
+.header-title {
+	font-size: 38rpx;
+	color: #FFF;
+	font-weight: 600;
+}
+
+.header-tabs {
+	display: flex;
+	background: #4A90D9;
+	padding: 0 24rpx;
+}
+
+.header-tab {
+	flex: 1;
+	text-align: center;
+	height: 80rpx;
+	line-height: 80rpx;
+	font-size: 28rpx;
+	color: rgba(255, 255, 255, 0.7);
+	position: relative;
+	&.active {
+		color: #FFF;
+		&::after {
+			content: '';
+			position: absolute;
+			bottom: 0;
+			left: 50%;
+			transform: translateX(-50%);
+			width: 48rpx;
+			height: 4rpx;
+			background: #FFF;
+			border-radius: 2rpx;
+		}
+	}
+}
+
+.scroll-content {
+	flex: 1;
+	height: 0;
+	padding-bottom: 140rpx;
+}
+
+.tab-content {
+	padding: 24rpx;
+}
+
+.guide-item {
+	display: flex;
+	align-items: center;
+	background: #FFF;
+	border-radius: 16rpx;
+	padding: 24rpx;
+	margin-bottom: 16rpx;
+}
+
+.guide-icon {
+	width: 80rpx;
+	height: 80rpx;
+	border-radius: 16rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 36rpx;
+	margin-right: 20rpx;
+	flex-shrink: 0;
+}
+
+.guide-info {
+	flex: 1;
+}
+
+.guide-name {
+	font-size: 30rpx;
+	color: #333;
+	font-weight: 500;
+	display: block;
+	margin-bottom: 6rpx;
+}
+
+.guide-desc {
+	font-size: 24rpx;
+	color: #999;
+}
+
+.guide-arrow {
+	font-size: 36rpx;
+	color: #CCC;
+}
+
+.tool-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 20rpx;
+}
+
+.tool-item {
+	width: calc(50% - 10rpx);
+	background: #FFF;
+	border-radius: 16rpx;
+	padding: 32rpx;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.tool-icon-wrap {
+	width: 100rpx;
+	height: 100rpx;
+	border-radius: 20rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 44rpx;
+	margin-bottom: 16rpx;
+}
+
+.tool-name {
+	font-size: 28rpx;
+	color: #333;
+}
+
+.notice-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	background: #FFF;
+	border-radius: 12rpx;
+	padding: 24rpx;
+	margin-bottom: 12rpx;
+}
+
+.notice-left {
+	flex: 1;
+	display: flex;
+	align-items: flex-start;
+}
+
+.notice-dot {
+	width: 12rpx;
+	height: 12rpx;
+	background: #DD524D;
+	border-radius: 50%;
+	margin-right: 16rpx;
+	margin-top: 8rpx;
+	flex-shrink: 0;
+}
+
+.notice-content {
+	flex: 1;
+}
+
+.notice-title {
+	font-size: 28rpx;
+	color: #333;
+	display: block;
+	margin-bottom: 8rpx;
+}
+
+.notice-time {
+	font-size: 22rpx;
+	color: #999;
+}
+
+.notice-arrow {
+	font-size: 32rpx;
+	color: #CCC;
+	margin-left: 16rpx;
+}
+</style>

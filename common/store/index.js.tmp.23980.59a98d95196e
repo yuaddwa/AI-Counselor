@@ -1,0 +1,83 @@
+import { reactive, computed } from 'vue'
+
+const state = reactive({
+	userInfo: null,
+	userType: '', // student | counselor
+	isLogin: false,
+	token: '',
+	notifications: [],
+	leaveRequests: []
+})
+
+const mutations = {
+	setUserInfo(info) {
+		state.userInfo = info
+		state.isLogin = true
+	},
+	setUserType(type) {
+		state.userType = type
+	},
+	setToken(token) {
+		state.token = token
+		uni.setStorageSync('token', token)
+	},
+	logout() {
+		state.userInfo = null
+		state.userType = ''
+		state.isLogin = false
+		state.token = ''
+		uni.removeStorageSync('token')
+		uni.removeStorageSync('userInfo')
+		uni.removeStorageSync('userType')
+	},
+	addNotification(msg) {
+		state.notifications.unshift({
+			id: Date.now(),
+			...msg,
+			read: false
+		})
+	},
+	markNotificationRead(id) {
+		const item = state.notifications.find(n => n.id === id)
+		if (item) item.read = true
+	},
+	addLeaveRequest(req) {
+		state.leaveRequests.unshift({
+			id: Date.now(),
+			status: 'pending',
+			createTime: new Date().toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(/\//g, '-'),
+			...req
+		})
+	},
+	updateLeaveStatus(id, status) {
+		const item = state.leaveRequests.find(r => r.id === id)
+		if (item) item.status = status
+	}
+}
+
+const getters = {
+	unreadCount: computed(() => state.notifications.filter(n => !n.read).length),
+	isStudent: computed(() => state.userType === 'student'),
+	isCounselor: computed(() => state.userType === 'counselor')
+}
+
+// 从缓存恢复登录状态
+function restoreLogin() {
+	const token = uni.getStorageSync('token')
+	const userInfo = uni.getStorageSync('userInfo')
+	const userType = uni.getStorageSync('userType')
+	if (token && userInfo && userType) {
+		state.token = token
+		state.userInfo = userInfo
+		state.userType = userType
+		state.isLogin = true
+	}
+}
+
+restoreLogin()
+
+export default {
+	state,
+	mutations,
+	getters
+}

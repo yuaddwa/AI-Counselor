@@ -1,0 +1,581 @@
+<template>
+	<view class="page">
+		<view class="home-header">
+			<view class="header-status" :style="{ height: statusBarHeight + 'px' }"></view>
+			<view class="header-bar">
+				<text class="header-title">AI辅导员</text>
+				<view class="header-actions">
+					<text class="header-btn" @click="goServices">服务</text>
+					<view class="header-notice" @click="goNotices">
+						<text class="notice-icon"> </text>
+						<view class="notice-dot" v-if="unreadCount > 0"></view>
+					</view>
+					<text class="header-btn" @click="goProfile">我的</text>
+				</view>
+			</view>
+		</view>
+
+		<!-- 快捷问答 -->
+		<scroll-view scroll-y class="chat-area" :scroll-top="scrollTop" :scroll-with-animation="true">
+			<!-- 欢迎语 -->
+			<view class="welcome-card" v-if="messages.length === 0">
+				<text class="welcome-title">你好，我是AI辅导员</text>
+				<text class="welcome-desc">有什么问题可以问我，或点击下方标签快速提问</text>
+				<view class="quick-tags">
+					<view class="quick-tag" v-for="(tag, i) in quickTags" :key="i" @click="sendQuick(tag)">
+						<text>{{ tag }}</text>
+					</view>
+				</view>
+			</view>
+
+			<!-- 聊天消息 -->
+			<view class="chat-messages">
+				<view
+					class="message-item"
+					v-for="(msg, i) in messages"
+					:key="i"
+					:class="{ 'message-self': msg.role === 'user' }"
+				>
+					<view class="message-avatar" v-if="msg.role === 'ai'">
+						<text class="avatar-ai">AI</text>
+					</view>
+					<view class="message-bubble" :class="{ 'bubble-self': msg.role === 'user' }">
+						<text class="message-text">{{ msg.content }}</text>
+						<view class="message-source" v-if="msg.source && msg.role === 'ai'">
+							<text>来源：{{ msg.source }}</text>
+						</view>
+						<view class="message-actions" v-if="msg.role === 'ai' && !msg.loading">
+							<view class="action-btn" @click="likeMsg(msg)">
+								<text :class="{ liked: msg.liked }"></text>
+							</view>
+							<view class="action-btn" @click="dislikeMsg(msg)">
+								<text :class="{ disliked: msg.disliked }"></text>
+							</view>
+						</view>
+						<view class="typing-indicator" v-if="msg.loading">
+							<view class="dot"></view>
+							<view class="dot"></view>
+							<view class="dot"></view>
+						</view>
+					</view>
+					<view class="message-avatar" v-if="msg.role === 'user'">
+						<text class="avatar-user">我</text>
+					</view>
+				</view>
+			</view>
+
+			<!-- 转人工 -->
+			<view class="transfer-human" v-if="showTransfer">
+				<text class="transfer-text">没有找到答案？</text>
+				<view class="transfer-btn" @click="transferToHuman">
+					<text>转人工服务</text>
+				</view>
+			</view>
+		</scroll-view>
+
+		<!-- 输入区 -->
+		<view class="input-bar">
+			<view class="input-wrap">
+				<input
+					class="chat-input"
+					v-model="inputText"
+					placeholder="请输入您的问题..."
+					confirm-type="send"
+					@confirm="sendMessage"
+					:adjust-position="false"
+				/>
+			</view>
+			<view class="voice-btn" @touchstart="startVoice" @touchend="stopVoice">
+				<text :class="{ recording: isRecording }">{{ isRecording ? '松开' : '语音' }}</text>
+			</view>
+			<view class="send-btn" @click="sendMessage" :class="{ active: inputText.trim() }">
+				<text>发送</text>
+			</view>
+		</view>
+
+		<!-- 录音动画 -->
+		<view class="recording-overlay" v-if="isRecording">
+			<view class="recording-popup">
+				<view class="recording-wave">
+					<view class="wave-bar" v-for="n in 5" :key="n"></view>
+				</view>
+				<text class="recording-text">正在录音...</text>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script>
+import store from '@/common/store/index.js'
+
+export default {
+	data() {
+		return {
+			statusBarHeight: 0,
+			scrollTop: 0,
+			inputText: '',
+			messages: [],
+			isRecording: false,
+			showTransfer: false,
+			quickTags: ['新生报到', '宿舍后勤', '缴费', '奖助', '请假', '军训'],
+			announcements: [
+				{ id: 1, title: '2026年秋季学期开学报到须知', time: '05-20', read: false },
+				{ id: 2, title: '关于国庆节放假安排的通知', time: '05-18', read: false },
+				{ id: 3, title: '图书馆暑期开放时间调整', time: '05-15', read: true }
+			],
+		}
+	},
+	computed: {
+		unreadCount() {
+			return this.announcements.filter(a => !a.read).length
+		}
+	},
+	created() {
+		const windowInfo = uni.getWindowInfo()
+		this.statusBarHeight = windowInfo.statusBarHeight || 0
+	},
+	methods: {
+		scrollToBottom() {
+			this.$nextTick(() => {
+				this.scrollTop = this.messages.length * 1000
+			})
+		},
+		sendQuick(tag) {
+			this.inputText = tag
+			this.sendMessage()
+		},
+		sendMessage() {
+			const text = this.inputText.trim()
+			if (!text) return
+
+			this.messages.push({
+				role: 'user',
+				content: text,
+				time: Date.now()
+			})
+			this.inputText = ''
+			this.scrollToBottom()
+
+			const aiMsg = {
+				role: 'ai',
+				content: '',
+				source: '新生入学指南',
+				loading: true,
+				liked: false,
+				disliked: false,
+				time: Date.now()
+			}
+			this.messages.push(aiMsg)
+			this.scrollToBottom()
+
+			const reply = `关于"${text}"的问题，根据学校相关规定：\n\n1. 请携带相关证件到对应部门办理\n2. 办公时间：周一至周五 8:30-17:00\n3. 如需进一步帮助，可联系辅导员\n\n更多详情请查看办事指南或联系人工客服。`
+			let index = 0
+			aiMsg.loading = false
+			const timer = setInterval(() => {
+				if (index < reply.length) {
+					aiMsg.content += reply[index]
+					index++
+					this.scrollToBottom()
+				} else {
+					clearInterval(timer)
+					this.showTransfer = true
+				}
+			}, 30)
+		},
+		likeMsg(msg) {
+			msg.liked = !msg.liked
+			if (msg.liked) msg.disliked = false
+		},
+		dislikeMsg(msg) {
+			msg.disliked = !msg.disliked
+			if (msg.disliked) msg.liked = false
+		},
+		startVoice() {
+			this.isRecording = true
+		},
+		stopVoice() {
+			this.isRecording = false
+			uni.showToast({ title: '语音识别中...', icon: 'loading' })
+		},
+		transferToHuman() {
+			uni.showModal({
+				title: '转人工服务',
+				content: '确认将当前对话转为人工服务？辅导员会尽快为您处理。',
+				success: (res) => {
+					if (res.confirm) {
+						uni.showToast({ title: '已提交工单', icon: 'success' })
+					}
+				}
+			})
+		},
+		goNotices() {
+			uni.navigateTo({ url: '/subpackages/student/pages/services/notices/index' })
+		},
+		goServices() {
+			uni.navigateTo({ url: '/subpackages/student/pages/services/index' })
+		},
+		goProfile() {
+			uni.navigateTo({ url: '/subpackages/profile/pages/student/index' })
+		}
+	}
+}
+</script>
+
+<style lang="scss" scoped>
+.page {
+	height: 100vh;
+	display: flex;
+	flex-direction: column;
+	background: #F5F6FA;
+}
+
+.home-header {
+	background: linear-gradient(135deg, #4A90D9, #6BA5E7, #4A90D9);
+	background-size: 200% 200%;
+	animation: headerShimmer 6s ease infinite;
+	flex-shrink: 0;
+}
+
+@keyframes headerShimmer {
+	0%, 100% { background-position: 0% 50%; }
+	50% { background-position: 100% 50%; }
+}
+
+.header-status { background: #4A90D9; }
+
+.header-bar {
+	height: 88rpx;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 32rpx;
+}
+
+.header-title {
+	font-size: 38rpx;
+	color: #FFFFFF;
+	font-weight: 600;
+}
+
+.header-actions {
+	display: flex;
+	align-items: center;
+	gap: 16rpx;
+}
+
+.header-btn {
+	font-size: 26rpx;
+	color: rgba(255, 255, 255, 0.9);
+	padding: 8rpx 16rpx;
+}
+
+.header-notice {
+	position: relative;
+	padding: 10rpx;
+}
+
+.notice-icon { font-size: 40rpx; }
+
+.notice-dot {
+	position: absolute;
+	top: 6rpx;
+	right: 6rpx;
+	width: 16rpx;
+	height: 16rpx;
+	background: #DD524D;
+	border-radius: 50%;
+	animation: dotPulse 2s ease infinite;
+}
+
+@keyframes dotPulse {
+	0%, 100% { transform: scale(1); opacity: 1; }
+	50% { transform: scale(1.4); opacity: 0.7; }
+}
+
+.chat-area {
+	flex: 1;
+	height: 0;
+	padding: 20rpx;
+}
+
+/* 欢迎卡片 */
+.welcome-card {
+	background: #FFF;
+	border-radius: 16rpx;
+	padding: 40rpx 32rpx;
+	margin-bottom: 20rpx;
+	animation: fadeSlideUp 0.5s ease both;
+}
+
+.welcome-title {
+	font-size: 34rpx;
+	font-weight: 600;
+	color: #333;
+	display: block;
+	margin-bottom: 12rpx;
+}
+
+.welcome-desc {
+	font-size: 26rpx;
+	color: #999;
+	display: block;
+	margin-bottom: 24rpx;
+}
+
+.quick-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16rpx;
+}
+
+.quick-tag {
+	padding: 12rpx 28rpx;
+	background: #EEF4FB;
+	border-radius: 28rpx;
+	font-size: 26rpx;
+	color: #4A90D9;
+	animation: fadeSlideUp 0.4s ease both;
+	&:nth-child(1) { animation-delay: 0.1s; }
+	&:nth-child(2) { animation-delay: 0.15s; }
+	&:nth-child(3) { animation-delay: 0.2s; }
+	&:nth-child(4) { animation-delay: 0.25s; }
+	&:nth-child(5) { animation-delay: 0.3s; }
+	&:nth-child(6) { animation-delay: 0.35s; }
+	transition: transform 0.2s ease, background 0.2s ease;
+	&:active { transform: scale(0.95); background: #D6E8F7; }
+}
+
+/* 聊天消息 */
+.chat-messages {
+	display: flex;
+	flex-direction: column;
+}
+
+.message-item {
+	display: flex;
+	align-items: flex-start;
+	margin-bottom: 24rpx;
+	animation: msgSlideIn 0.35s ease both;
+	&.message-self {
+		justify-content: flex-end;
+		animation-name: msgSlideInRight;
+	}
+}
+
+.message-avatar {
+	flex-shrink: 0;
+	margin-right: 12rpx;
+	.message-self & {
+		margin-right: 0;
+		margin-left: 12rpx;
+	}
+}
+
+.avatar-ai {
+	display: flex;
+	width: 64rpx;
+	height: 64rpx;
+	border-radius: 50%;
+	background: #4A90D9;
+	color: #FFF;
+	font-size: 22rpx;
+	align-items: center;
+	justify-content: center;
+	font-weight: 600;
+}
+
+.avatar-user {
+	display: flex;
+	width: 64rpx;
+	height: 64rpx;
+	border-radius: 50%;
+	background: #4CD964;
+	color: #FFF;
+	font-size: 22rpx;
+	align-items: center;
+	justify-content: center;
+}
+
+.message-bubble {
+	max-width: 70%;
+	background: #FFFFFF;
+	border-radius: 16rpx;
+	padding: 20rpx 24rpx;
+	box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+	&.bubble-self {
+		background: #4A90D9;
+		.message-text { color: #FFF; }
+	}
+}
+
+.message-text {
+	font-size: 28rpx;
+	color: #333;
+	line-height: 1.6;
+	word-break: break-all;
+}
+
+.message-source {
+	margin-top: 12rpx;
+	padding-top: 12rpx;
+	border-top: 1rpx solid #F0F0F0;
+	font-size: 22rpx;
+	color: #999;
+}
+
+.message-actions {
+	display: flex;
+	margin-top: 12rpx;
+	padding-top: 12rpx;
+	border-top: 1rpx solid #F0F0F0;
+	gap: 20rpx;
+}
+
+.action-btn {
+	font-size: 28rpx;
+	.liked { color: #4A90D9; }
+	.disliked { color: #DD524D; }
+}
+
+.typing-indicator {
+	display: flex;
+	gap: 8rpx;
+	padding: 8rpx 0;
+}
+
+.dot {
+	width: 12rpx;
+	height: 12rpx;
+	border-radius: 50%;
+	background: #CCC;
+	animation: dotBlink 1.4s infinite;
+	&:nth-child(2) { animation-delay: 0.2s; }
+	&:nth-child(3) { animation-delay: 0.4s; }
+}
+
+@keyframes dotBlink {
+	0%, 80%, 100% { opacity: 0.3; }
+	40% { opacity: 1; }
+}
+
+.transfer-human {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24rpx;
+	gap: 16rpx;
+}
+
+.transfer-text {
+	font-size: 24rpx;
+	color: #999;
+}
+
+.transfer-btn {
+	padding: 12rpx 28rpx;
+	background: #F0AD4E;
+	border-radius: 28rpx;
+	font-size: 24rpx;
+	color: #FFF;
+}
+
+/* 输入区 */
+.input-bar {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	padding: 16rpx 20rpx;
+	padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
+	background: #FFF;
+	border-top: 1rpx solid #EEE;
+}
+
+.input-wrap { flex: 1; }
+
+.chat-input {
+	height: 72rpx;
+	background: #F5F6FA;
+	border-radius: 36rpx;
+	padding: 0 24rpx;
+	font-size: 28rpx;
+}
+
+.voice-btn {
+	width: 80rpx;
+	height: 72rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-left: 12rpx;
+	background: #F5F6FA;
+	border-radius: 12rpx;
+	font-size: 22rpx;
+	color: #666;
+	.recording { color: #DD524D; }
+}
+
+.send-btn {
+	width: 100rpx;
+	height: 72rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-left: 12rpx;
+	background: #CCC;
+	border-radius: 12rpx;
+	font-size: 26rpx;
+	color: #FFF;
+	&.active { background: #4A90D9; }
+}
+
+/* 录音动画 */
+.recording-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.4);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1000;
+}
+
+.recording-popup {
+	background: rgba(0, 0, 0, 0.75);
+	border-radius: 20rpx;
+	padding: 60rpx 80rpx;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.recording-wave {
+	display: flex;
+	gap: 8rpx;
+	margin-bottom: 20rpx;
+}
+
+.wave-bar {
+	width: 6rpx;
+	height: 40rpx;
+	background: #FFF;
+	border-radius: 3rpx;
+	animation: wave 0.8s infinite ease-in-out;
+	&:nth-child(2) { animation-delay: 0.1s; height: 50rpx; }
+	&:nth-child(3) { animation-delay: 0.2s; height: 60rpx; }
+	&:nth-child(4) { animation-delay: 0.3s; height: 50rpx; }
+	&:nth-child(5) { animation-delay: 0.4s; }
+}
+
+@keyframes wave {
+	0%, 100% { transform: scaleY(0.6); }
+	50% { transform: scaleY(1.2); }
+}
+
+.recording-text {
+	color: #FFF;
+	font-size: 26rpx;
+}
+</style>
