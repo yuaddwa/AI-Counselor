@@ -1,4 +1,4 @@
-﻿<template>
+<template>
 	<view class="page">
 		<scroll-view scroll-y class="edit-scroll">
 			<view class="form-group">
@@ -39,6 +39,8 @@
 </template>
 
 <script>
+import { api } from '@/common/utils/request.js'
+
 export default {
 	data() {
 		return {
@@ -49,13 +51,7 @@ export default {
 				categoryId: '',
 				categoryName: ''
 			},
-			categories: [
-				{ id: '1', name: '新生报到' },
-				{ id: '2', name: '教务管理' },
-				{ id: '3', name: '后勤服务' },
-				{ id: '4', name: '奖助政策' },
-				{ id: '5', name: '军训指南' }
-			]
+			categories: []
 		}
 	},
 	computed: {
@@ -64,19 +60,46 @@ export default {
 		}
 	},
 	onLoad(options) {
+		this.loadCategories()
 		if (options.id) {
 			this.form.id = options.id
-			// 加载已有数据
-			this.form.title = '2026年新生报到全流程指南'
-			this.form.categoryId = '1'
-			this.form.categoryName = '新生报到'
-			this.form.content = '新生报到详细流程内容...'
+			this.loadDetail(options.id)
 			uni.setNavigationBarTitle({ title: '编辑知识库' })
 		} else {
 			uni.setNavigationBarTitle({ title: '新建知识库' })
 		}
 	},
 	methods: {
+		async loadCategories() {
+			try {
+				const res = await api.getKnowledgeCategories()
+				const list = res.list || res || []
+				if (list.length) {
+					this.categories = list
+				}
+			} catch (e) {}
+		},
+		async loadDetail(id) {
+			try {
+				uni.showLoading({ title: '加载中...' })
+				const res = await api.getKnowledgeList({ id })
+				const list = res
+				const item = Array.isArray(list) ? list.find(k => k.id == id) : list
+				if (item) {
+					this.form.title = item.title || ''
+					this.form.content = item.content || ''
+					this.form.categoryId = item.categoryId || item.category || ''
+					const cat = this.categories.find(c => c.id == this.form.categoryId)
+					if (cat) {
+						this.form.categoryName = cat.name
+					}
+				}
+			} catch (e) {
+				uni.showToast({ title: '加载失败', icon: 'none' })
+			} finally {
+				uni.hideLoading()
+			}
+		},
 		onCategoryChange(e) {
 			const index = e.detail.value
 			this.form.categoryId = this.categories[index].id
@@ -91,12 +114,23 @@ export default {
 				uni.showToast({ title: '请选择分类', icon: 'none' })
 				return
 			}
+			this.doSave()
+		},
+		async doSave() {
 			uni.showLoading({ title: '保存中...' })
-			setTimeout(() => {
+			try {
+				await api.saveKnowledge({
+					title: this.form.title,
+					content: this.form.content,
+					category: this.form.categoryId
+				})
 				uni.hideLoading()
 				uni.showToast({ title: '保存成功', icon: 'success' })
 				setTimeout(() => uni.navigateBack(), 1500)
-			}, 1000)
+			} catch (e) {
+				uni.hideLoading()
+				uni.showToast({ title: e.msg || '保存失败', icon: 'none' })
+			}
 		},
 		handleCancel() {
 			uni.navigateBack()

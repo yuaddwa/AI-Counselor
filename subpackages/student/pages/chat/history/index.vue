@@ -29,30 +29,54 @@
 
 <script>
 import EmptyState from '@/common/components/empty-state.vue'
+import { api } from '@/common/utils/request.js'
 
 export default {
 	components: { EmptyState },
 	data() {
 		return {
-			sessions: [
-				{ id: '1', lastMessage: '如何办理缓缴学费手续？', time: '05-20 14:30', msgCount: 5 },
-				{ id: '2', lastMessage: '宿舍报修流程是什么？', time: '05-19 10:15', msgCount: 3 },
-				{ id: '3', lastMessage: '奖学金评选条件有哪些？', time: '05-18 16:45', msgCount: 8 }
-			]
+			sessions: [],
+			page: 1,
+			pageSize: 20,
+			hasMore: true
 		}
 	},
+	created() {
+		this.loadHistory()
+	},
 	methods: {
+		async loadHistory() {
+			try {
+				const res = await api.getChatHistory({ page: this.page, pageSize: this.pageSize })
+				if (res) {
+					this.sessions = (res.list || []).map(item => ({
+						id: item.sessionId,
+						lastMessage: item.title || item.lastMessage || '',
+						time: item.updateTime ? item.updateTime.substring(5, 16).replace('T', ' ') : '',
+						msgCount: 0
+					}))
+					this.hasMore = this.sessions.length >= this.pageSize
+				}
+			} catch (e) {
+				console.error('加载聊天历史失败', e)
+			}
+		},
 		openSession(item) {
-			uni.navigateTo({ url: `/subpackages/student/pages/chat/index?sessionId=${item.id}` })
+			uni.navigateTo({ url: `/subpackages/student/pages/home/index?sessionId=${item.id}` })
 		},
 		deleteSession(item, index) {
 			uni.showModal({
 				title: '确认删除',
 				content: '删除后不可恢复，确认删除该对话？',
-				success: (res) => {
+				success: async (res) => {
 					if (res.confirm) {
-						this.sessions.splice(index, 1)
-						uni.showToast({ title: '已删除', icon: 'success' })
+						try {
+							await api.deleteChatSession(item.id)
+							this.sessions.splice(index, 1)
+							uni.showToast({ title: '已删除', icon: 'success' })
+						} catch (e) {
+							uni.showToast({ title: '删除失败', icon: 'none' })
+						}
 					}
 				}
 			})
@@ -62,10 +86,15 @@ export default {
 			uni.showModal({
 				title: '确认清空',
 				content: '将清空所有历史对话，确认继续？',
-				success: (res) => {
+				success: async (res) => {
 					if (res.confirm) {
-						this.sessions = []
-						uni.showToast({ title: '已清空', icon: 'success' })
+						try {
+							await api.clearAllChat()
+							this.sessions = []
+							uni.showToast({ title: '已清空', icon: 'success' })
+						} catch (e) {
+							uni.showToast({ title: '清空失败', icon: 'none' })
+						}
 					}
 				}
 			})

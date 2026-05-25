@@ -4,15 +4,15 @@
 			<view class="settings-section">
 				<view class="setting-item">
 					<text class="setting-label">问答消息通知</text>
-					<switch :checked="settings.chatNotify" @change="settings.chatNotify = $event.detail.value" color="#4A90D9" />
+					<switch :checked="settings.chatNotify" @change="onToggle('chatNotify', $event)" color="#4A90D9" />
 				</view>
 				<view class="setting-item">
 					<text class="setting-label">工单状态提醒</text>
-					<switch :checked="settings.orderNotify" @change="settings.orderNotify = $event.detail.value" color="#4A90D9" />
+					<switch :checked="settings.orderNotify" @change="onToggle('orderNotify', $event)" color="#4A90D9" />
 				</view>
 				<view class="setting-item">
 					<text class="setting-label">系统消息通知</text>
-					<switch :checked="settings.systemNotify" @change="settings.systemNotify = $event.detail.value" color="#4A90D9" />
+					<switch :checked="settings.systemNotify" @change="onToggle('systemNotify', $event)" color="#4A90D9" />
 				</view>
 			</view>
 
@@ -38,6 +38,8 @@
 </template>
 
 <script>
+import { api } from '@/common/utils/request.js'
+
 export default {
 	data() {
 		return {
@@ -46,23 +48,50 @@ export default {
 				orderNotify: true,
 				systemNotify: false
 			},
-			cacheSize: '2.3MB'
+			cacheSize: '0B'
 		}
 	},
+	onLoad() {
+		this.loadSettings()
+	},
 	methods: {
+		async loadSettings() {
+			try {
+				const res = await api.getNotificationSettings()
+				if (res) {
+					this.settings = { ...this.settings, ...res }
+				}
+			} catch (e) {
+				console.error('加载通知设置失败', e)
+			}
+		},
+		async updateSettings() {
+			try {
+				await api.updateNotificationSettings(this.settings)
+			} catch (e) {
+				console.error('更新通知设置失败', e)
+				uni.showToast({ title: '保存失败', icon: 'none' })
+			}
+		},
+		onToggle(key, event) {
+			this.settings[key] = event.detail.value
+			this.updateSettings()
+		},
 		clearCache() {
 			uni.showModal({
 				title: '清除缓存',
 				content: '确定清除本地缓存数据？',
 				success: (res) => {
 					if (res.confirm) {
+						uni.clearStorageSync()
 						this.cacheSize = '0B'
 						uni.showToast({ title: '已清除', icon: 'success' })
 					}
 				}
 			})
 		},
-		saveSettings() {
+		async saveSettings() {
+			await this.updateSettings()
 			uni.showToast({ title: '保存成功', icon: 'success' })
 			setTimeout(() => uni.navigateBack(), 1500)
 		}

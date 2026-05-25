@@ -7,7 +7,7 @@
 			@click="switchTab(item, index)"
 		>
 			<view class="tabbar-icon" :class="{ active: current === index }">
-				<text class="iconfont">{{ item.icon }}</text>
+				<text class="iconfont" :class="item.icon"></text>
 			</view>
 			<text class="tabbar-text" :class="{ active: current === index }">{{ item.text }}</text>
 			<view class="badge" v-if="item.badge && item.badge > 0">

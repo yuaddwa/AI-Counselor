@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "校历管理",
+  "usingComponents": {
+    "empty-state": "../../../../common/components/empty-state"
+  }
+}

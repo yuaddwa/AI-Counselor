@@ -23,7 +23,7 @@
 					:class="{ active: activePoi === i }"
 				>
 					<view class="poi-icon" :style="{ background: poi.color }">
-						<text class="iconfont">{{ poi.icon }}</text>
+						<text class="iconfont" :class="poi.icon || 'icon-ditu'"></text>
 					</view>
 					<view class="poi-info">
 						<text class="poi-name">{{ poi.name }}</text>
@@ -36,24 +36,27 @@
 </template>
 
 <script>
+import { api } from '@/common/utils/request.js'
+
 export default {
 	data() {
 		return {
-			centerLat: 39.908823,
-			centerLng: 116.397470,
+			centerLat: 0,
+			centerLng: 0,
 			keyword: '',
 			activePoi: -1,
-			pois: [
-				{ name: '图书馆', category: '教学设施', icon: '', color: '#E8F4FD', lat: 39.909223, lng: 116.397070 },
-				{ name: '第一食堂', category: '餐饮', icon: '', color: '#FFF3E0', lat: 39.908523, lng: 116.397870 },
-				{ name: '第二食堂', category: '餐饮', icon: '', color: '#FFF3E0', lat: 39.908023, lng: 116.396570 },
-				{ name: '校医院', category: '医疗', icon: '', color: '#FFE8E8', lat: 39.909523, lng: 116.398270 },
-				{ name: '体育馆', category: '运动设施', icon: '', color: '#E8F8E8', lat: 39.908723, lng: 116.396070 },
-				{ name: '快递驿站', category: '服务', icon: '', color: '#F3E8FD', lat: 39.907823, lng: 116.397270 },
-				{ name: '行政楼', category: '办公', icon: '', color: '#EEF4FB', lat: 39.909423, lng: 116.396570 },
-				{ name: '学生宿舍1号楼', category: '宿舍', icon: '', color: '#FFF8E0', lat: 39.908123, lng: 116.398370 }
-			]
+			pois: []
 		}
+	},
+	created() {
+		api.getCampusMap().then(res => {
+			if (res) {
+				const d = res
+				if (d.centerLat) this.centerLat = d.centerLat
+				if (d.centerLng) this.centerLng = d.centerLng
+				if (d.pois && d.pois.length) this.pois = d.pois
+			}
+		}).catch(() => {})
 	},
 	computed: {
 		markers() {

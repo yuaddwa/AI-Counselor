@@ -1,40 +1,90 @@
 "use strict";
 const common_vendor = require("../../../../common/vendor.js");
+const common_utils_request = require("../../../../common/utils/request.js");
+const guideIconMap = {
+  checkin: "icon-xuexiaogaikuang",
+  registration: "icon-xuexiaogaikuang",
+  dormitory: "icon-allicon_houqinfuwu",
+  dorm: "icon-allicon_houqinfuwu",
+  library: "icon-zhishi",
+  book: "icon-zhishi",
+  medical: "icon-yibaobaoxiao",
+  hospital: "icon-yibaobaoxiao",
+  health: "icon-yibaobaoxiao",
+  job: "icon-jiuyezhidaozhongxin",
+  employment: "icon-jiuyezhidaozhongxin",
+  map: "icon-ditu",
+  campus: "icon-ditu",
+  phone: "icon-changyong-dianhua",
+  contact: "icon-changyong-dianhua",
+  fee: "icon-caiwujiaofei",
+  payment: "icon-caiwujiaofei",
+  leave: "icon-renwu",
+  ticket: "icon-gongdan",
+  notice: "icon-tongzhi",
+  service: "icon-fuwu",
+  feedback: "icon-yijianfankui",
+  lost: "icon-shiwuzhaoling",
+  found: "icon-shiwuzhaoling",
+  calendar: "icon-xiaoli",
+  score: "icon-chengjichaxun-01",
+  grade: "icon-chengjichaxun-01",
+  schedule: "icon-kebiao"
+};
 const _sfc_main = {
   data() {
     return {
       statusBarHeight: 0,
       activeTab: 0,
       tabs: ["办事指南", "校园工具", "通知中心"],
-      guides: [
-        { name: "教务办理", desc: "选课、成绩查询、学籍变动", icon: "", bg: "#E8F4FD" },
-        { name: "财务缴费", desc: "学费、住宿费在线缴费", icon: "", bg: "#E8F8E8" },
-        { name: "后勤服务", desc: "宿舍报修、水电充值", icon: "", bg: "#FFF3E0" },
-        { name: "社团申请", desc: "社团创建、活动审批", icon: "", bg: "#F3E8FD" },
-        { name: "医保报销", desc: "就医报销、医保卡办理", icon: "", bg: "#FFE8E8" },
-        { name: "就业服务", desc: "就业协议、简历指导", icon: "", bg: "#E8FFF3" }
-      ],
+      guides: [],
       tools: [
-        { name: "校园地图", icon: "", bg: "#E8F4FD", url: "/subpackages/student/pages/services/campus-map/index" },
-        { name: "常用电话", icon: "", bg: "#FFF3E0", url: "/subpackages/student/pages/services/phonebook/index" },
-        { name: "校历", icon: "", bg: "#E8F8E8", url: "" },
-        { name: "成绩查询", icon: "", bg: "#F3E8FD", url: "" },
-        { name: "课表", icon: "", bg: "#FFE8E8", url: "" },
-        { name: "失物招领", icon: "", bg: "#E8FFF3", url: "" }
+        { name: "校园地图", icon: "icon-ditu", bg: "#E8F4FD", url: "/subpackages/student/pages/services/campus-map/index" },
+        { name: "常用电话", icon: "icon-changyong-dianhua", bg: "#FFF3E0", url: "/subpackages/student/pages/services/phonebook/index" },
+        { name: "校历", icon: "icon-xiaoli", bg: "#E8F8E8", url: "/subpackages/student/pages/services/calendar/index" },
+        { name: "成绩查询", icon: "icon-chengjichaxun-01", bg: "#F3E8FD", url: "/subpackages/student/pages/services/grades/index" },
+        { name: "课表", icon: "icon-kebiao", bg: "#FFE8E8", url: "/subpackages/student/pages/services/schedule/index" },
+        { name: "失物招领", icon: "icon-shiwuzhaoling", bg: "#E8FFF3", url: "/subpackages/student/pages/services/lost-found/index" }
       ],
-      notices: [
-        { id: 1, title: "2026年秋季学期开学报到须知", time: "05-20", read: false },
-        { id: 2, title: "关于国庆节放假安排的通知", time: "05-18", read: false },
-        { id: 3, title: "图书馆暑期开放时间调整", time: "05-15", read: true },
-        { id: 4, title: "校园卡系统升级维护公告", time: "05-12", read: true }
-      ]
+      notices: []
     };
   },
   created() {
     const windowInfo = common_vendor.index.getWindowInfo();
     this.statusBarHeight = windowInfo.statusBarHeight || 0;
+    this.loadData();
   },
   methods: {
+    async loadData() {
+      try {
+        const res = await common_utils_request.api.getServiceGuides();
+        if (res) {
+          const colors = ["#E8F4FD", "#E8F8E8", "#FFF3E0", "#F3E8FD", "#FFE8E8", "#E8FFF3"];
+          this.guides = (res.guides || res.list || []).map((item, i) => ({
+            id: item.id,
+            name: item.title || item.name,
+            desc: item.description || item.desc || "",
+            icon: guideIconMap[item.icon] || "icon-gongneng",
+            bg: colors[i % colors.length]
+          }));
+        }
+      } catch (e) {
+        common_vendor.index.__f__("error", "at subpackages/student/pages/services/index.vue:166", "加载办事指南失败", e);
+      }
+      try {
+        const res = await common_utils_request.api.getNotices({ page: 1, pageSize: 20 });
+        if (res) {
+          this.notices = (res.notices || res.list || []).map((item) => ({
+            id: item.id,
+            title: item.title,
+            time: item.createTime ? item.createTime.substring(5, 10) : "",
+            read: item.read
+          }));
+        }
+      } catch (e) {
+        common_vendor.index.__f__("error", "at subpackages/student/pages/services/index.vue:179", "加载通知失败", e);
+      }
+    },
     goBack() {
       common_vendor.index.navigateBack();
     },
@@ -44,7 +94,8 @@ const _sfc_main = {
       this.activeTab = i;
     },
     goGuideDetail(item) {
-      common_vendor.index.navigateTo({ url: `/subpackages/student/pages/services/guide-detail/index?name=${encodeURIComponent(item.name)}` });
+      const id = item.id || "";
+      common_vendor.index.navigateTo({ url: `/subpackages/student/pages/services/guide-detail/index?id=${id}&name=${encodeURIComponent(item.name)}` });
     },
     goTool(tool) {
       if (tool.url) {
@@ -77,7 +128,7 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
   }, $data.activeTab === 0 ? {
     e: common_vendor.f($data.guides, (item, i, i0) => {
       return {
-        a: common_vendor.t(item.icon),
+        a: common_vendor.n(item.icon),
         b: item.bg,
         c: common_vendor.t(item.name),
         d: common_vendor.t(item.desc),
@@ -90,7 +141,7 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
   }, $data.activeTab === 1 ? {
     g: common_vendor.f($data.tools, (tool, i, i0) => {
       return {
-        a: common_vendor.t(tool.icon),
+        a: common_vendor.n(tool.icon),
         b: tool.bg,
         c: common_vendor.t(tool.name),
         d: i,

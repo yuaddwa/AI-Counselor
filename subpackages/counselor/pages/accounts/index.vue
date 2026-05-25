@@ -21,46 +21,61 @@
 
 			<!-- 学生账号 -->
 			<view v-if="activeTab === 0" class="tab-content">
-				<!-- 操作栏 -->
-				<view class="action-row">
-					<view class="action-btn primary" @click="showAddStudent = true">
-						<text>+ 单条添加</text>
+				<!-- 班级列表视图 -->
+				<view v-if="classViewMode">
+					<view class="action-row">
+						<view class="action-btn primary" @click="showAddStudent = true">
+							<text>+ 添加账号</text>
+						</view>
+						<view class="action-btn" @click="downloadTemplate">
+							<text>&#128196; 下载模板</text>
+						</view>
+						<view class="action-btn" @click="importExcel">
+							<text>&#128228; 批量导入</text>
+						</view>
 					</view>
-					<view class="action-btn" @click="downloadTemplate">
-						<text>&#128196; 下载模板</text>
+					<view class="class-list">
+						<view class="class-row" v-for="(cls, i) in classList" :key="i" @click="selectClass(cls)">
+							<text class="class-name">{{ cls.name }}</text>
+							<view class="class-right">
+								<text class="class-count">{{ cls.count }}人</text>
+								<text class="class-arrow">›</text>
+							</view>
+						</view>
 					</view>
-					<view class="action-btn" @click="importExcel">
-						<text>&#128228; 批量导入</text>
-					</view>
+					<empty-state v-if="classList.length === 0" text="暂无班级数据" />
 				</view>
 
-				<!-- 搜索 -->
-				<input class="search-input" v-model="searchKeyword" placeholder="搜索学号/姓名/班级" />
-
-				<!-- 账号列表 -->
-				<view class="account-list">
-					<view class="account-item" v-for="(acc, i) in filteredAccounts" :key="i">
-						<view class="acc-main">
-							<text class="acc-id">{{ acc.studentId }}</text>
-							<text class="acc-name">{{ acc.name }}</text>
-							<text class="acc-class">{{ acc.className }}</text>
+				<!-- 学生列表视图 -->
+				<view v-else>
+					<view class="class-nav">
+						<view class="back-btn" @click="backToClasses">
+							<text class="back-arrow">‹</text>
+							<text>全部班级</text>
 						</view>
-						<view class="acc-meta">
-							<text class="acc-status" :class="{ active: acc.loginStatus }">{{ acc.loginStatus ? '已登录' : '未登录' }}</text>
-							<text class="acc-time">{{ acc.createTime }}</text>
-						</view>
-						<view class="acc-actions">
-							<view class="acc-action" @click="editAccount(acc)">编辑</view>
-							<view class="acc-action warn" @click="resetPassword(acc)">重置密码</view>
-							<view class="acc-action" @click="toggleDisable(acc)">{{ acc.disabled ? '启用' : '禁用' }}</view>
+						<text class="current-class">{{ selectedClass }}</text>
+					</view>
+					<view class="account-list">
+						<view class="account-item" v-for="(acc, i) in filteredAccounts" :key="i">
+							<view class="acc-main">
+								<text class="acc-id">{{ acc.studentId }}</text>
+								<text class="acc-name">{{ acc.name }}</text>
+								<text class="acc-class">{{ acc.className }}</text>
+							</view>
+							<view class="acc-meta">
+								<text class="acc-status" :class="{ active: acc.loginStatus }">{{ acc.loginStatus ? '已登录' : '未登录' }}</text>
+								<text class="acc-time">{{ acc.createTime }}</text>
+							</view>
+							<view class="acc-actions">
+								<view class="acc-action" @click="editAccount(acc)">编辑</view>
+								<view class="acc-action warn" @click="resetPassword(acc)">重置密码</view>
+								<view class="acc-action" @click="toggleDisable(acc)">{{ acc.disabled ? '启用' : '禁用' }}</view>
+							</view>
 						</view>
 					</view>
+					<empty-state v-if="filteredAccounts.length === 0" text="暂无学生账号" />
 				</view>
-
-				<empty-state v-if="filteredAccounts.length === 0" text="暂无学生账号" />
-			</view>
-
-			<!-- 辅导员子账号 -->
+			</view><!-- 辅导员子账号 -->
 			<view v-if="activeTab === 1" class="tab-content">
 				<view class="action-row">
 					<view class="action-btn primary" @click="showAddCounselor = true">
@@ -168,16 +183,11 @@ export default {
 			newCounselor: { workId: '', name: '', password: '', role: '' },
 			roleOptions: ['普通辅导员', '高级管理员'],
 			importResult: { success: 0, fail: 0, errors: [] },
-			accounts: [
-				{ studentId: '2026001', name: '张同学', className: '计算机2601', loginStatus: true, createTime: '05-15', disabled: false },
-				{ studentId: '2026002', name: '李同学', className: '计算机2602', loginStatus: false, createTime: '05-15', disabled: false },
-				{ studentId: '2026003', name: '王同学', className: '经管2601', loginStatus: true, createTime: '05-14', disabled: false },
-				{ studentId: '2026004', name: '赵同学', className: '外语2601', loginStatus: false, createTime: '05-14', disabled: true }
-			],
-			subAccounts: [
-				{ workId: 'T001', name: '李老师', role: '普通辅导员', disabled: false },
-				{ workId: 'T002', name: '王老师', role: '高级管理员', disabled: false }
-			]
+			accounts: [],
+			subAccounts: [],
+			classList: [],
+			selectedClass: '',
+			classViewMode: true
 		}
 	},
 	computed: {
@@ -191,19 +201,63 @@ export default {
 	},
 	created() {
 		this.loadAccounts()
+		this.loadClasses()
+	},
+	onPullDownRefresh() {
+		this.loadAccounts()
+		this.loadClasses()
+		setTimeout(() => { uni.stopPullDownRefresh() }, 500)
 	},
 	methods: {
+		loadClasses() {
+			api.getClasses().then(data => {
+				const classes = data.classes || []
+				this.classList = classes.map(c => ({
+					name: c.className,
+					count: c.studentCount ?? 0
+				}))
+				this.updateClassCount()
+			}).catch(() => {})
+		},
+		updateClassCount() {
+			if (this.classList.length === 0 || this.accounts.length === 0) return
+			const countMap = {}
+			this.accounts.forEach(a => {
+				if (a.className) {
+					countMap[a.className] = (countMap[a.className] || 0) + 1
+				}
+			})
+			this.classList.forEach(c => {
+				if (countMap[c.name] !== undefined) {
+					c.count = countMap[c.name]
+				}
+			})
+		},
+		selectClass(cls) {
+			this.selectedClass = cls.name
+			this.classViewMode = false
+			this.searchKeyword = cls.name
+		},
+		backToClasses() {
+			this.classViewMode = true
+			this.selectedClass = ''
+			this.searchKeyword = ''
+		},
 		loadAccounts() {
 			api.getAccounts({ type: 'student' }).then(data => {
-				if (data.students) this.accounts = data.students
+				if (data.students) {
+						this.accounts = data.students
+						this.updateClassCount()
+					}
 			}).catch(() => {})
 			api.getCounselorSubAccounts().then(data => {
 				if (data.accounts) this.subAccounts = data.accounts
 			}).catch(() => {})
 		},
 		downloadTemplate() {
-			api.downloadTemplate().catch(() => {
-				uni.showToast({ title: '模板下载失败', icon: 'none' })
+			api.downloadTemplate().catch((err) => {
+				console.error('下载模板失败:', JSON.stringify(err))
+				uni.showToast({ title: err.msg || '模板下载失败', icon: 'none' })
 			})
 		},
 		importExcel() {
@@ -213,20 +267,18 @@ export default {
 				extension: ['xlsx', 'xls'],
 				success: (res) => {
 					const filePath = res.tempFiles[0].path
+					console.log("chooseFile:", filePath)
 					this.uploading = true
 					this.uploadProgress = 0
 					api.batchImportAccounts(filePath).then(data => {
 						this.uploading = false
-						this.importResult = {
-							success: data.success || 0,
-							fail: data.fail || 0,
-							errors: data.errors || []
-						}
-						this.showImportResult = true
+						uni.showToast({ title: "导入成功", icon: "success" })
 						this.loadAccounts()
-					}).catch(() => {
+						this.updateClassCount()
+					}).catch((err) => {
 						this.uploading = false
-						uni.showToast({ title: '导入失败', icon: 'none' })
+						console.error("导入失败:", JSON.stringify(err))
+						uni.showToast({ title: err.msg || "导入失败", icon: "none" })
 					})
 				}
 			})
@@ -252,6 +304,7 @@ export default {
 					createTime: '刚刚',
 					disabled: false
 				})
+				this.updateClassCount()
 				this.showAddStudent = false
 				this.newStudent = { studentId: '', name: '', className: '', password: '123456' }
 				uni.showToast({ title: '添加成功', icon: 'success' })
@@ -464,6 +517,76 @@ export default {
 	font-size: 24rpx;
 	color: #4A90D9;
 	&.warn { color: #F0AD4E; }
+}
+
+
+.class-list {
+	display: flex;
+	flex-direction: column;
+	gap: 12rpx;
+}
+
+.class-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	background: #FFF;
+	padding: 28rpx 24rpx;
+	border-radius: 12rpx;
+	box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.03);
+	transition: transform 0.15s ease, box-shadow 0.2s ease;
+	&:active { transform: scale(0.98); box-shadow: 0 4rpx 16rpx rgba(74,144,217,0.12); }
+}
+
+.class-name {
+	font-size: 30rpx;
+	color: #333;
+	font-weight: 500;
+}
+
+.class-right {
+	display: flex;
+	align-items: center;
+	gap: 12rpx;
+}
+
+.class-count {
+	font-size: 24rpx;
+	color: #999;
+}
+
+.class-arrow {
+	font-size: 36rpx;
+	color: #CCC;
+}
+
+.class-nav {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 16rpx 0;
+	margin-bottom: 12rpx;
+}
+
+.back-btn {
+	display: flex;
+	align-items: center;
+	gap: 8rpx;
+	font-size: 28rpx;
+	color: #4A90D9;
+	transition: transform 0.2s ease;
+	&:active { transform: translateX(-6rpx); }
+}
+
+.back-arrow {
+	font-size: 40rpx;
+	color: #4A90D9;
+}
+
+.current-class {
+	font-size: 28rpx;
+	color: #333;
+	font-weight: 500;
 }
 
 .modal-mask {

@@ -1,23 +1,33 @@
 "use strict";
 const common_vendor = require("../../../../../common/vendor.js");
+const common_utils_request = require("../../../../../common/utils/request.js");
 const _sfc_main = {
   data() {
     return {
       guideName: "",
-      steps: [
-        { title: "准备材料", desc: "携带学生证、身份证及相关申请表" },
-        { title: "前往办理", desc: "到对应办公室取号排队" },
-        { title: "提交申请", desc: "将材料提交给工作人员审核" },
-        { title: "等待处理", desc: "一般3-5个工作日内完成办理" }
-      ],
-      materials: ["学生证原件及复印件", "身份证原件及复印件", "相关申请表（可在现场领取）", "一寸免冠照片2张"],
-      location: "行政楼一楼综合服务大厅",
-      officeHours: "周一至周五 8:30-11:30，14:00-17:00",
-      phone: "010-88888888"
+      steps: [],
+      materials: [],
+      location: "",
+      officeHours: "",
+      phone: ""
     };
   },
   onLoad(options) {
-    if (options.name) {
+    if (options.id) {
+      common_utils_request.api.getGuideDetail(options.id).then((res) => {
+        if (res) {
+          const d = res;
+          this.guideName = d.name || this.guideName;
+          this.steps = d.steps || this.steps;
+          this.materials = d.materials || this.materials;
+          this.location = d.location || this.location;
+          this.officeHours = d.officeHours || this.officeHours;
+          this.phone = d.phone || this.phone;
+          common_vendor.index.setNavigationBarTitle({ title: this.guideName });
+        }
+      }).catch(() => {
+      });
+    } else if (options.name) {
       this.guideName = decodeURIComponent(options.name);
       common_vendor.index.setNavigationBarTitle({ title: this.guideName });
     }

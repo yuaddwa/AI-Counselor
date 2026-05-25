@@ -24,7 +24,7 @@
 		<scroll-view scroll-y class="scroll-content">
 			<!-- 数据统计卡片 -->
 			<view class="stats-card">
-				<view class="stat-item" v-for="(stat, i) in stats" :key="i" >
+				<view class="stat-item" v-for="(stat, i) in stats" :key="i" @click="goStatPage(stat.label)">
 					<text class="stat-num">{{ stat.num }}</text>
 					<text class="stat-label">{{ stat.label }}</text>
 				</view>
@@ -102,6 +102,7 @@
 import CustomTabbar from '@/common/components/custom-tabbar.vue'
 import EmptyState from '@/common/components/empty-state.vue'
 import store from '@/common/store/index.js'
+import { api } from '@/common/utils/request.js'
 
 export default {
 	components: { CustomTabbar, EmptyState },
@@ -114,49 +115,100 @@ export default {
 			passwordForm: { oldPwd: '', newPwd: '', confirmPwd: '' },
 			userInfo: {},
 			stats: [
-				{ num: 48, label: '学生' },
-				{ num: 15, label: '工单' },
-				{ num: 32, label: '知识库' }
+				{ num: 0, label: '学生' },
+				{ num: 0, label: '工单' },
+				{ num: 0, label: '知识库' }
 			],
-			operationLogs: [
-				{ action: '导入了48个学生账号', time: '05-20 14:30' },
-				{ action: '发布了通知：开学报到须知', time: '05-20 10:00' },
-				{ action: '完结了工单 #1024', time: '05-19 16:30' },
-				{ action: '新增了知识库条目', time: '05-19 10:15' },
-				{ action: '修改了系统设置', time: '05-18 09:00' }
-			],
+			operationLogs: [],
+				notificationSettings: null,
 			counselorTabs: [
-					{ text: '工作台', icon: '', url: '/subpackages/counselor/pages/workspace/index' },
-					{ text: '知识库', icon: '', url: '/subpackages/counselor/pages/knowledge/index' },
-					{ text: '工单', icon: '', url: '/subpackages/counselor/pages/orders/index' },
-					{ text: '数据', icon: '', url: '/subpackages/counselor/pages/data/index' },
-					{ text: '我的', icon: '', url: '/subpackages/profile/pages/counselor/index' }
+					{ text: '工作台', icon: 'icon-gongzuotai', url: '/subpackages/counselor/pages/workspace/index' },
+					{ text: '知识库', icon: 'icon-zhishi', url: '/subpackages/counselor/pages/knowledge/index' },
+					{ text: '工单', icon: 'icon-gongdan', url: '/subpackages/counselor/pages/orders/index' },
+					{ text: '数据', icon: 'icon-shuju', url: '/subpackages/counselor/pages/data/index' },
+					{ text: '我的', icon: 'icon-wode', url: '/subpackages/profile/pages/counselor/index' }
 				]
 		}
 	},
 	created() {
 		const windowInfo = uni.getWindowInfo()
 		this.statusBarHeight = windowInfo.statusBarHeight || 0
-		this.userInfo = store.state.userInfo || { name: '李老师', id: 'T001', role: '辅导员' }
+		this.userInfo = store.state.userInfo || { name: '', id: '', role: '' }
+		this.loadStats()
+		this.loadOperationLogs()
+		this.loadNotificationSettings()
 	},
 	methods: {
+		async loadStats() {
+			try {
+				const res = await api.getCounselorStats()
+				if (res) {
+					this.stats = [
+						{ num: res.studentCount ?? 0, label: "学生" },
+						{ num: res.todayOrders ?? 0, label: "工单" },
+						{ num: res.knowledgeCount ?? 0, label: "知识库" }
+					]
+				}
+			} catch (e) {}
+		},
 		onAvatarTap() {
 			this.avatarSpin = true
 			setTimeout(() => { this.avatarSpin = false }, 800)
 		},
+		goStatPage(label) {
+			const map = { '学生': 'accounts', '工单': 'orders', '知识库': 'knowledge' }
+			const type = map[label]
+			if (type) this.goPage(type)
+		},
 		goPage(type) {
 			switch (type) {
 				case 'password': this.showPassword = true; break
-				case 'logs': this.showLogs = true; break
+				case 'logs':
+					this.showLogs = true
+					this.loadOperationLogs()
+					break
 				case 'accounts':
 					uni.navigateTo({ url: '/subpackages/counselor/pages/accounts/index' })
+					break
+				case 'knowledge':
+					uni.navigateTo({ url: '/subpackages/counselor/pages/knowledge/index' })
+					break
+				case 'orders':
+					uni.navigateTo({ url: '/subpackages/counselor/pages/orders/index' })
 					break
 				case 'settings':
 					uni.navigateTo({ url: '/subpackages/profile/pages/settings/index' })
 					break
 			}
 		},
-		changePassword() {
+		async loadOperationLogs() {
+			try {
+				const res = await api.getOperationLogs({ page: 1, pageSize: 20 })
+				this.operationLogs = (res.logs || []).map(item => ({
+					action: item.action || item.content,
+					time: item.time || item.createdAt
+				}))
+			} catch (e) {
+				console.error('加载操作日志失败', e)
+			}
+		},
+		async loadNotificationSettings() {
+			try {
+				const res = await api.getCounselorNotificationSettings()
+				this.notificationSettings = res
+			} catch (e) {
+				console.error('加载通知设置失败', e)
+			}
+		},
+		async saveNotificationSettings() {
+			try {
+				await api.updateCounselorNotificationSettings(this.notificationSettings)
+				uni.showToast({ title: '设置已保存', icon: 'success' })
+			} catch (e) {
+				uni.showToast({ title: e.msg || '保存失败', icon: 'none' })
+			}
+		},
+		async changePassword() {
 			if (!this.passwordForm.oldPwd || !this.passwordForm.newPwd) {
 				uni.showToast({ title: '请填写完整', icon: 'none' })
 				return
@@ -165,9 +217,18 @@ export default {
 				uni.showToast({ title: '两次密码不一致', icon: 'none' })
 				return
 			}
-			uni.showToast({ title: '修改成功', icon: 'success' })
-			this.showPassword = false
-			this.passwordForm = { oldPwd: '', newPwd: '', confirmPwd: '' }
+			try {
+				await api.updatePassword({
+					oldPassword: this.passwordForm.oldPwd,
+					newPassword: this.passwordForm.newPwd,
+					confirmPassword: this.passwordForm.confirmPwd
+				})
+				uni.showToast({ title: '修改成功', icon: 'success' })
+				this.showPassword = false
+				this.passwordForm = { oldPwd: '', newPwd: '', confirmPwd: '' }
+			} catch (e) {
+				uni.showToast({ title: e.msg || '修改失败', icon: 'none' })
+			}
 		},
 		handleLogout() {
 			uni.showModal({
@@ -263,7 +324,7 @@ export default {
 	border: 4rpx solid rgba(91, 155, 213, 0.3);
 	animation: avatarGlow 2.5s ease-in-out 1s infinite, avatarIdle 3s ease-in-out 2s infinite;
 	transition: transform 0.3s ease;
-	&.spinning {
+	&.spinning {
 	}
 }
 
@@ -326,7 +387,7 @@ export default {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	position: relative;
+	position: relative;
 	opacity: 0;
 		animation: statPop 0.5s ease forwards;
 		&:nth-child(1) { animation-delay: 0.1s; }
@@ -339,7 +400,7 @@ export default {
 		top: 20%;
 		height: 60%;
 		width: 1rpx;
-		background: rgba(91, 155, 213, 0.15);
+		background: rgba(91, 155, 213, 0.15);
 		transform: scaleY(0);
 	}
 }
@@ -361,7 +422,7 @@ export default {
 	margin: 24rpx 24rpx 0;
 	background: #FFF;
 	border-radius: 16rpx;
-	overflow: hidden;
+	overflow: hidden;
 }
 
 .menu-item {

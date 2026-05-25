@@ -99,6 +99,7 @@
 
 <script>
 import CustomTabbar from '@/common/components/custom-tabbar.vue'
+import { api } from '@/common/utils/request.js'
 
 export default {
 	components: { CustomTabbar },
@@ -106,56 +107,62 @@ export default {
 		return {
 			statusBarHeight: 0,
 			activeTime: 0,
-			timeTabs: ['日', '周', '月'],
-			trendData: [
-				{ label: '周一', value: 45, height: 60 },
-				{ label: '周二', value: 62, height: 82 },
-				{ label: '周三', value: 38, height: 50 },
-				{ label: '周四', value: 75, height: 100 },
-				{ label: '周五', value: 55, height: 73 },
-				{ label: '周六', value: 28, height: 37 },
-				{ label: '周日', value: 20, height: 27 }
-			],
-			categoryData: [
-				{ name: '教务问题', percent: 35, color: '#4A90D9' },
-				{ name: '后勤服务', percent: 25, color: '#4CD964' },
-				{ name: '政策咨询', percent: 20, color: '#F0AD4E' },
-				{ name: '心理辅导', percent: 12, color: '#DD524D' },
-				{ name: '其他', percent: 8, color: '#9B59B6' }
-			],
-			rankData: [
-				{ name: '计算机2601', count: 156 },
-				{ name: '经管2601', count: 132 },
-				{ name: '计算机2602', count: 118 },
-				{ name: '外语2601', count: 96 },
-				{ name: '机械2601', count: 85 }
-			],
-			hotQuestions: [
-				{ question: '如何办理缓缴学费', count: 89 },
-				{ question: '宿舍报修流程', count: 76 },
-				{ question: '奖学金评选条件', count: 65 },
-				{ question: '选课系统使用', count: 52 },
-				{ question: '医保报销流程', count: 48 }
-			],
-			feedbackList: [
-				{ content: 'AI回答不够详细，希望补充更多细节', time: '05-20' },
-				{ content: '查不到图书馆的开放时间', time: '05-19' },
-				{ content: '转人工等待时间太长', time: '05-18' }
-			],
+			timeTabs: ['周', '月', '学期'],
+			trendData: [],
+			categoryData: [],
+			rankData: [],
+			hotQuestions: [],
+			feedbackList: [],
 			counselorTabs: [
-					{ text: '工作台', icon: '', url: '/subpackages/counselor/pages/workspace/index' },
-					{ text: '知识库', icon: '', url: '/subpackages/counselor/pages/knowledge/index' },
-					{ text: '工单', icon: '', url: '/subpackages/counselor/pages/orders/index' },
-					{ text: '数据', icon: '', url: '/subpackages/counselor/pages/data/index' },
-					{ text: '我的', icon: '', url: '/subpackages/profile/pages/counselor/index' }
+					{ text: '工作台', icon: 'icon-gongzuotai', url: '/subpackages/counselor/pages/workspace/index' },
+					{ text: '知识库', icon: 'icon-zhishi', url: '/subpackages/counselor/pages/knowledge/index' },
+					{ text: '工单', icon: 'icon-gongdan', url: '/subpackages/counselor/pages/orders/index' },
+					{ text: '数据', icon: 'icon-shuju', url: '/subpackages/counselor/pages/data/index' },
+					{ text: '我的', icon: 'icon-wode', url: '/subpackages/profile/pages/counselor/index' }
 				]
 		}
 	},
 	created() {
 		const sysInfo = uni.getSystemInfoSync()
 		this.statusBarHeight = sysInfo.statusBarHeight || 0
+		this.loadStatistics()
+	},
+	watch: {
+		activeTime() {
+			this.loadStatistics()
+		}
 	},
 	methods: {
+		async loadStatistics() {
+			this.loading = true
+			try {
+				const timeMap = { 0: 'week', 1: 'month', 2: 'semester' }
+				const params = { period: timeMap[this.activeTime] }
+				const res = await api.getStatistics(params)
+				const data = res
+
+				if (data.trendData && data.trendData.length) {
+					this.trendData = data.trendData
+				}
+				if (data.categoryData && data.categoryData.length) {
+					this.categoryData = data.categoryData
+				}
+				if (data.rankData && data.rankData.length) {
+					this.rankData = data.rankData
+				}
+				if (data.hotQuestions && data.hotQuestions.length) {
+					this.hotQuestions = data.hotQuestions
+				}
+				if (data.feedbackList && data.feedbackList.length) {
+					this.feedbackList = data.feedbackList
+				}
+			} catch (e) {
+				console.error('加载统计数据失败', e)
+				uni.showToast({ title: '数据加载失败', icon: 'none' })
+			} finally {
+				this.loading = false
+			}
+		},
 		viewFeedback(item) {
 			uni.showModal({
 				title: '反馈详情',
@@ -228,7 +235,7 @@ export default {
 	background: #FFF;
 	border-radius: 16rpx;
 	padding: 24rpx;
-	box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.03);
+	box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.03);
 }
 
 .chart-title {
@@ -260,7 +267,7 @@ export default {
 	align-items: center;
 	justify-content: flex-start;
 	padding-top: 8rpx;
-	min-height: 30rpx;
+	min-height: 30rpx;
 }
 
 .bar-value {
@@ -314,7 +321,7 @@ export default {
 .pie-fill {
 	height: 100%;
 	border-radius: 8rpx;
-	transition: width 0.5s;
+	transition: width 0.5s;
 }
 
 .pie-value {

@@ -25,7 +25,7 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
   return {
     a: common_vendor.f($props.tabs, (item, index, i0) => {
       return common_vendor.e({
-        a: common_vendor.t(item.icon),
+        a: common_vendor.n(item.icon),
         b: $props.current === index ? 1 : "",
         c: common_vendor.t(item.text),
         d: $props.current === index ? 1 : "",

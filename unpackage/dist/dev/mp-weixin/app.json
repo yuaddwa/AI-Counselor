@@ -13,7 +13,11 @@
         "pages/services/guide-detail/index",
         "pages/services/campus-map/index",
         "pages/services/phonebook/index",
-        "pages/services/notices/index"
+        "pages/services/notices/index",
+        "pages/services/calendar/index",
+        "pages/services/grades/index",
+        "pages/services/schedule/index",
+        "pages/services/lost-found/index"
       ],
       "name": "student"
     },
@@ -28,7 +32,9 @@
         "pages/data/index",
         "pages/accounts/index",
         "pages/notifications/index",
-        "pages/notifications/create/index"
+        "pages/notifications/create/index",
+        "pages/lost-found/index",
+        "pages/calendar/index"
       ],
       "name": "counselor"
     },

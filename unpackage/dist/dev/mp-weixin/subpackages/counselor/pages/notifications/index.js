@@ -1,43 +1,60 @@
 "use strict";
 const common_vendor = require("../../../../common/vendor.js");
+const common_utils_request = require("../../../../common/utils/request.js");
 const EmptyState = () => "../../../../common/components/empty-state.js";
 const _sfc_main = {
   components: { EmptyState },
   data() {
     return {
       selectedNotice: null,
-      notices: [
-        {
-          id: 1,
-          title: "2026年秋季学期开学报到须知",
-          time: "05-20 10:00",
-          scope: "全体学生",
-          readCount: 356,
-          totalCount: 500,
-          content: "各位同学：2026年秋季学期开学报到安排如下...",
-          readList: [
-            { name: "张同学 (2026001)", read: true },
-            { name: "李同学 (2026002)", read: true },
-            { name: "王同学 (2026003)", read: false }
-          ]
-        },
-        {
-          id: 2,
-          title: "关于国庆节放假安排的通知",
-          time: "05-18 14:00",
-          scope: "计算机2601",
-          readCount: 45,
-          totalCount: 48,
-          content: "根据国务院办公厅通知...",
-          readList: [
-            { name: "张同学 (2026001)", read: true },
-            { name: "赵同学 (2026004)", read: false }
-          ]
-        }
-      ]
+      page: 1,
+      pageSize: 20,
+      notices: []
     };
   },
+  onLoad() {
+    this.loadNotifications();
+  },
   methods: {
+    async loadNotifications() {
+      try {
+        const res = await common_utils_request.api.getNotifications({ page: this.page, pageSize: this.pageSize });
+        const list = res || [];
+        this.notices = list.map((item) => ({
+          id: item.id,
+          title: item.title,
+          time: item.time || item.createdAt,
+          scope: item.scope,
+          readCount: item.readCount || 0,
+          totalCount: item.totalCount || 0,
+          content: item.content,
+          readList: item.readList || []
+        }));
+      } catch (e) {
+        common_vendor.index.__f__("error", "at subpackages/counselor/pages/notifications/index.vue:90", "加载通知列表失败", e);
+        common_vendor.index.showToast({ title: "加载失败", icon: "none" });
+      }
+    },
+    deleteNotification(id) {
+      common_vendor.index.showModal({
+        title: "确认删除",
+        content: "确定要删除此通知吗？",
+        success: (res) => {
+          if (res.confirm) {
+            common_utils_request.api.deleteNotification(id).then(() => {
+              this.notices = this.notices.filter((n) => n.id !== id);
+              if (this.selectedNotice && this.selectedNotice.id === id) {
+                this.selectedNotice = null;
+              }
+              common_vendor.index.showToast({ title: "删除成功", icon: "success" });
+            }).catch((e) => {
+              common_vendor.index.__f__("error", "at subpackages/counselor/pages/notifications/index.vue:107", "删除通知失败", e);
+              common_vendor.index.showToast({ title: "删除失败", icon: "none" });
+            });
+          }
+        }
+      });
+    },
     goCreate() {
       common_vendor.index.navigateTo({ url: "/subpackages/counselor/pages/notifications/create/index" });
     },

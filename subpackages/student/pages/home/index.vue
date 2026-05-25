@@ -21,21 +21,30 @@
 			</view>
 		</view>
 
+		<view class="dh-container">
+			<video
+				id="dhVideo"
+				src="https://xhztest.xyz/live/stream1.m3u8"
+				autoplay
+				muted
+				:controls="false"
+				object-fit="cover"
+				class="dh-player"
+			/>
+		</view>
+
 		<scroll-view scroll-y class="chat-area" :scroll-into-view="scrollIntoView" scroll-with-animation @scroll="onChatScroll">
 			<view class="welcome-card" v-if="messages.length === 0">
 				<text class="welcome-title">你好，我是AI辅导员</text>
-				<text class="welcome-desc">有什么问题可以问我，或点击下方标签快速提问</text>
-				<view class="quick-tags">
-					<view class="quick-tag" :class="{ active: activeTag === tag }" v-for="(tag, i) in quickTags" :key="i" @click="sendQuick(tag)">
-						<text>{{ tag }}</text>
-					</view>
-				</view>
+				<text class="welcome-desc">有什么问题可以问我</text>
 			</view>
+
+			<view class="chat-spacer" v-if="messages.length > 0"></view>
 
 			<view class="chat-messages">
 				<view
 					class="message-item"
-					v-for="(msg, i) in messages"
+					v-for="(msg, i) in lastMessages"
 					:key="i"
 					:class="{ 'message-self': msg.role === 'user' }"
 				>
@@ -93,12 +102,14 @@
 		</view>
 
 		<view class="footer-fixed">
-			<view class="quick-tags-bar" v-if="messages.length > 0">
-				<view class="quick-tags">
-					<view class="quick-tag" v-for="(tag, i) in quickTags" :key="i" @click="sendQuick(tag)">
-						<text>{{ tag }}</text>
+			<view class="quick-tags-bar">
+				<scroll-view scroll-x class="quick-tags-scroll" :show-scrollbar="false">
+					<view class="quick-tags">
+						<view class="quick-tag" v-for="(tag, i) in quickTags" :key="i" @click="sendQuick(tag)">
+							<text>{{ tag }}</text>
+						</view>
 					</view>
-				</view>
+				</scroll-view>
 			</view>
 			<view class="input-bar">
 				<view class="voice-btn" @click="toggleVoiceMode">
@@ -138,6 +149,8 @@
 </template>
 
 <script>
+import { api } from '@/common/utils/request.js'
+
 export default {
 	data() {
 		return {
@@ -158,17 +171,23 @@ export default {
 			voicePath: "",
 			leaveState: "idle",
 			leaveForm: { type: "", reason: "", startTime: "", endTime: "" },
-			quickTags: ["新生报到", "宿舍后勤", "缴费", "奖助", "请假", "军训"],
-			announcements: [
-				{ id: 1, title: "2026年秋季学期开学报到须知", time: "05-20", read: false },
-				{ id: 2, title: "关于国庆节放假安排的通知", time: "05-18", read: false },
-				{ id: 3, title: "图书馆暑期开放时间调整", time: "05-15", read: true }
-			]
+			sessionId: null,
+			quickTags: ["新生报到", "宿舍后勤", "奖助", "请假", "军训"],
+			announcements: []
 		}
 	},
 	computed: {
 		unreadCount() {
 			return this.announcements.filter(a => !a.read).length
+		},
+		lastMessages() {
+			const msgs = this.messages
+			if (msgs.length === 0) return []
+			const last = msgs[msgs.length - 1]
+			if (last.role === 'user' || msgs.length === 1) return [last]
+			const prev = msgs[msgs.length - 2]
+			if (prev && prev.role === 'user') return [prev, last]
+			return [last]
 		},
 		leavePlaceholder() {
 			if (this.leaveState === 'askReason') return '请输入请假原因...'
@@ -192,7 +211,7 @@ export default {
 				this.recorderManager.onStop((res) => {
 					if (!this.willCancel && res.tempFilePath) {
 						this.voicePath = res.tempFilePath
-						this.inputText = '[语音消息] 请后端接入语音识别后自动转换文字'
+						this.recognizeSpeech(res.tempFilePath)
 					}
 				})
 				this.recorderManager.onError((err) => {
@@ -201,6 +220,18 @@ export default {
 				})
 			}
 		} catch(e) {}
+	},
+	onShow() {
+		setTimeout(() => { this.loadData() }, 100)
+	},
+	onLoad(options) {
+		if (options.sessionId) {
+			this.sessionId = options.sessionId
+			this.loadSessionDetail(options.sessionId)
+		}
+	},
+	beforeDestroy() {
+		this.destroyDigitalHuman()
 	},
 	methods: {
 		scrollToBottom() {
@@ -225,41 +256,10 @@ export default {
 			}
 			this.activeTag = tag
 			this.inputText = tag
-			this.messages.push({
-				role: 'user',
-				content: tag,
-				time: Date.now()
-			})
-			const aiMsg = {
-				role: 'ai',
-				content: '',
-				source: '新生入学指南',
-				loading: true,
-				liked: false,
-				disliked: false,
-				time: Date.now()
-			}
-			this.messages.push(aiMsg)
-			this.inputText = ''
-			this.scrollToBottom()
-			setTimeout(() => {
-				this.activeTag = ''
-				const reply = '关于"' + tag + '"的问题，根据学校相关规定：\n\n1. 请携带相关证件到对应部门办理\n2. 办公时间：周一至周五 8:30-17:00\n3. 如需进一步帮助，可联系辅导员\n\n更多详情请查看办事指南或联系人工客服。'
-				let index = 0
-				const timer = setInterval(() => {
-					if (index < reply.length) {
-						aiMsg.content += reply[index]
-						index++
-						this.scrollToBottom()
-					} else {
-						clearInterval(timer)
-						aiMsg.loading = false
-						this.showTransfer = true
-					}
-				}, 30)
-			}, 500)
+			this.sendMessage()
+			this.activeTag = ''
 		},
-		sendMessage() {
+		async sendMessage() {
 			const text = this.inputText.trim()
 			if (!text) return
 			if (/请假|休假|请个假/.test(text) && this.leaveState === 'idle') {
@@ -282,39 +282,51 @@ export default {
 				time: Date.now()
 			})
 			this.inputText = ''
-			this.scrollToBottom()
 			const aiMsg = {
 				role: 'ai',
 				content: '',
-				source: '新生入学指南',
+				source: '',
 				loading: true,
 				liked: false,
 				disliked: false,
 				time: Date.now()
 			}
 			this.messages.push(aiMsg)
-			this.scrollToBottom()
-			const reply = '关于"' + text + '"的问题，根据学校相关规定：\n\n1. 请携带相关证件到对应部门办理\n2. 办公时间：周一至周五 8:30-17:00\n3. 如需进一步帮助，可联系辅导员\n\n更多详情请查看办事指南或联系人工客服。'
-			let index = 0
-			const timer = setInterval(() => {
-				if (index < reply.length) {
-					aiMsg.content += reply[index]
-					index++
-					this.scrollToBottom()
+			try {
+				const res = await api.sendMessage({ message: text, sessionId: this.sessionId })
+				if (res) {
+					this.sessionId = res.sessionId || this.sessionId
+					aiMsg.content = res.reply || '抱歉，暂时无法回答您的问题。'
+					this.dhSpeak(aiMsg.content)
 				} else {
-					clearInterval(timer)
-					aiMsg.loading = false
-					this.showTransfer = true
+					aiMsg.content = '抱歉，服务暂时不可用，请稍后再试。'
 				}
-			}, 30)
+			} catch (e) {
+				console.error('发送消息失败', e)
+				aiMsg.content = '网络异常，请检查网络后重试。'
+			}
+			aiMsg.loading = false
+			this.showTransfer = true
 		},
-		likeMsg(msg) {
+		async likeMsg(msg) {
 			msg.liked = !msg.liked
-			if (msg.liked) msg.disliked = false
+			if (msg.liked) {
+				msg.disliked = false
+				try {
+					const msgIndex = this.messages.indexOf(msg)
+					await api.submitFeedback({ sessionId: this.sessionId, messageIndex: msgIndex, type: 'like' })
+				} catch (e) {}
+			}
 		},
-		dislikeMsg(msg) {
+		async dislikeMsg(msg) {
 			msg.disliked = !msg.disliked
-			if (msg.disliked) msg.liked = false
+			if (msg.disliked) {
+				msg.liked = false
+				try {
+					const msgIndex = this.messages.indexOf(msg)
+					await api.submitFeedback({ sessionId: this.sessionId, messageIndex: msgIndex, type: 'dislike' })
+				} catch (e) {}
+			}
 		},
 		toggleVoiceMode() {
 			if (!this.voiceMode) {
@@ -381,6 +393,59 @@ export default {
 				this.willCancel = false
 			}
 		},
+		recognizeSpeech(tempFilePath) {
+			this.inputText = ''
+			this.recognizedText = '正在识别...'
+			// 读取音频文件转base64，用微信同声传译插件识别
+			uni.getFileSystemManager().readFile({
+				filePath: tempFilePath,
+				encoding: 'base64',
+				success: (res) => {
+					try {
+						const plugin = requirePlugin('WechatSI')
+						if (plugin && plugin.translate) {
+							plugin.translate({
+								from: 'zh_CN',
+								to: 'zh_CN',
+								audio: { data: res.data, sampleRate: 16000 },
+								success: (r) => {
+									if (r.result) {
+										this.recognizedText = r.result
+										this.inputText = r.result
+									}
+								},
+								fail: (err) => {
+									console.error('微信语音识别失败', err)
+									this.fallbackSpeechToText(tempFilePath)
+								}
+							})
+							return
+						}
+					} catch (e) {
+						console.log('WechatSI插件不可用，使用后端识别')
+					}
+					this.fallbackSpeechToText(tempFilePath)
+				},
+				fail: () => {
+					this.fallbackSpeechToText(tempFilePath)
+				}
+			})
+		},
+		async fallbackSpeechToText(tempFilePath) {
+			try {
+				const res = await api.speechToText(tempFilePath)
+				if (res && res.text) {
+					this.recognizedText = res.text
+					this.inputText = res.text
+				} else {
+					this.recognizedText = ''
+					uni.showToast({ title: '识别失败，请手动输入', icon: 'none' })
+				}
+			} catch (e) {
+				this.recognizedText = ''
+				uni.showToast({ title: '识别失败，请手动输入', icon: 'none' })
+			}
+		},
 		transferToHuman() {
 			uni.showModal({
 				title: '转人工服务',
@@ -419,7 +484,6 @@ export default {
 					]
 				}
 			})
-			this.scrollToBottom()
 		},
 		onExtraBtn(msg, btn) {
 			if (this.leaveState === 'askType') {
@@ -448,7 +512,6 @@ export default {
 				time: Date.now()
 			})
 			this.inputText = ''
-			this.scrollToBottom()
 		},
 		onLeaveReason(reason) {
 			this.leaveForm.reason = reason
@@ -469,7 +532,6 @@ export default {
 				}
 			})
 			this.inputText = ''
-			this.scrollToBottom()
 		},
 		onLeaveDate(e, field) {
 			const date = e.detail.value
@@ -510,7 +572,6 @@ export default {
 					}
 				})
 			}
-			this.scrollToBottom()
 		},
 		onDateColumnChange(e, msg) {
 			// 多列选择器列变化时触发
@@ -520,35 +581,50 @@ export default {
 				this.onLeaveDate(e, msg.extra.dateField)
 			}
 		},
-		onLeaveConfirm() {
+		async onLeaveConfirm() {
 			this.messages.forEach(m => {
 				if (m.extra && m.extra.buttons && !m.answered) m.answered = true
 			})
 			this.messages.push({ role: 'user', content: '确认提交', time: Date.now() })
 			try {
-				const store = require('@/common/store/index.js').default
-				const userInfo = store.state.userInfo || {}
-				store.mutations.addLeaveRequest({
-					studentName: userInfo.name || '同学',
-					studentId: userInfo.id || '2026001',
-					className: userInfo.className || '',
+				const res = await api.submitLeave({
 					leaveType: this.leaveForm.type,
 					reason: this.leaveForm.reason,
 					startTime: this.leaveForm.startTime,
 					endTime: this.leaveForm.endTime
 				})
-			} catch(e) {}
-			this.messages.push({
-				role: 'ai',
-				content: '请假申请已提交，请等待辅导员审批。',
-				loading: false,
-				liked: false,
-				disliked: false,
-				time: Date.now()
-			})
+				if (res) {
+					this.messages.push({
+						role: 'ai',
+						content: '请假申请已提交，请等待辅导员审批。',
+						loading: false,
+						liked: false,
+						disliked: false,
+						time: Date.now()
+					})
+				} else {
+					this.messages.push({
+						role: 'ai',
+						content: '请假申请提交失败：' + (res.msg || '未知错误'),
+						loading: false,
+						liked: false,
+						disliked: false,
+						time: Date.now()
+					})
+				}
+			} catch (e) {
+				console.error('提交请假失败', e)
+				this.messages.push({
+					role: 'ai',
+					content: '网络异常，请假申请提交失败，请重试。',
+					loading: false,
+					liked: false,
+					disliked: false,
+					time: Date.now()
+				})
+			}
 			this.leaveState = 'idle'
 			this.showTransfer = true
-			this.scrollToBottom()
 		},
 		onLeaveCancel() {
 			this.messages.forEach(m => {
@@ -564,11 +640,74 @@ export default {
 				time: Date.now()
 			})
 			this.leaveState = 'idle'
-			this.scrollToBottom()
 		},
 		formatDateDisplay(d) {
 			if (!d) return ''
 			return d.replace(/\//g, '-')
+		},
+		initDigitalHuman() {},
+		destroyDigitalHuman() {},
+		async dhSpeak(text) {
+			if (!text) return
+			try {
+				await api.digitalHumanSpeak({ sessionId: '0', text, interrupt: true })
+			} catch (e) {
+				console.error("数字人播报失败", e)
+			}
+		},
+		async dhInterrupt() {
+			try {
+				await api.digitalHumanInterrupt({ sessionId: '0' })
+			} catch (e) {}
+		},
+		async loadData() {
+			try {
+				const res = await api.getStudentHome()
+				if (res) {
+					if (res.quickTags && res.quickTags.length > 0) {
+						this.quickTags = res.quickTags
+					}
+					if (res.recentSessionId) {
+						this.sessionId = res.recentSessionId
+					}
+				}
+			} catch (e) {
+				console.error('加载首页数据失败', e)
+			}
+			try {
+				const res = await api.getNotices({ page: 1, pageSize: 20 })
+				if (res) {
+					this.announcements = (res.notices || res.list || []).map(item => ({
+						id: item.id,
+						title: item.title,
+						time: item.createTime ? item.createTime.substring(5, 10) : '',
+						read: item.read
+					}))
+				}
+			} catch (e) {
+				console.error('加载通知失败', e)
+			}
+		},
+		async loadSessionDetail(sessionId) {
+			try {
+				const res = await api.getChatDetail(sessionId)
+				if (res) {
+					this.sessionId = res.sessionId
+					this.messages = (res.messages || []).map(msg => ({
+						role: msg.role === 'assistant' ? 'ai' : msg.role,
+						content: msg.content,
+						loading: false,
+						liked: false,
+						disliked: false,
+						time: msg.timestamp ? new Date(msg.timestamp).getTime() : Date.now()
+					}))
+					if (this.messages.length > 0) {
+						this.showTransfer = true
+					}
+				}
+			} catch (e) {
+				console.error('加载会话详情失败', e)
+			}
 		}
 	}
 }
@@ -582,13 +721,27 @@ export default {
 	background: #F5F6FA;
 }
 
+.dh-container {
+	flex: 1;
+	background: #000;
+	position: relative;
+	overflow: hidden;
+}
+
+.dh-player {
+	width: 100%;
+	height: 100%;
+}
+
 .home-header {
-	background: linear-gradient(180deg, #E8F4FD, #F0F8FF);
+	background: linear-gradient(180deg, rgba(232, 244, 253, 0.95), rgba(240, 248, 255, 0.9));
 	flex-shrink: 0;
+	position: relative;
+	z-index: 10;
 }
 
 .header-status {
-	background: #E8F4FD;
+	background: rgba(232, 244, 253, 0.95);
 }
 
 .header-bar {
@@ -640,19 +793,23 @@ export default {
 	right: 0;
 	bottom: 0;
 	z-index: 100;
-	background: #FFF;
+	background: transparent;
 }
 
 .chat-area {
-	flex: 1;
-	height: 0;
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	top: 0;
+	z-index: 5;
 	padding: 20rpx;
-	padding-bottom: 200rpx;
+	padding-bottom: 300rpx;
 }
 
 .welcome-card {
-	background: #FFF;
-	border-radius: 16rpx;
+	background: transparent;
+	border-radius: 0;
 	padding: 40rpx 32rpx;
 	margin-bottom: 20rpx;
 }
@@ -660,14 +817,14 @@ export default {
 .welcome-title {
 	font-size: 34rpx;
 	font-weight: 600;
-	color: #333;
+	color: #FFF;
 	display: block;
 	margin-bottom: 12rpx;
 }
 
 .welcome-desc {
 	font-size: 26rpx;
-	color: #999;
+	color: rgba(255,255,255,0.8);
 	display: block;
 	margin-bottom: 24rpx;
 }
@@ -699,8 +856,21 @@ export default {
 
 .quick-tags-bar {
 	padding: 8rpx 24rpx;
-	background: #FFF;
-	border-bottom: 1rpx solid #F0F0F0;
+	background: transparent;
+	border-bottom: none;
+}
+
+	.quick-tags-scroll {
+		white-space: nowrap;
+	}
+
+	.quick-tags-scroll .quick-tags {
+		display: inline-flex;
+		flex-wrap: nowrap;
+	}
+
+.chat-spacer {
+	height: 55vh;
 }
 
 .chat-messages {
@@ -755,7 +925,7 @@ export default {
 
 .message-bubble {
 	max-width: 70%;
-	background: #FFFFFF;
+	background: #FFF;
 	border-radius: 16rpx;
 	padding: 20rpx 24rpx;
 	box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
@@ -892,7 +1062,7 @@ export default {
 	right: 32rpx;
 	width: 72rpx;
 	height: 72rpx;
-	background: #FFF;
+	background: transparent;
 	border-radius: 50%;
 	display: flex;
 	align-items: center;
@@ -919,7 +1089,7 @@ export default {
 	align-items: center;
 	padding: 16rpx 24rpx;
 	padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
-	background: #FFF;
+	background: transparent;
 	box-shadow: 0 -4rpx 20rpx rgba(91, 155, 213, 0.08);
 	gap: 16rpx;
 }
@@ -1052,7 +1222,7 @@ export default {
 	margin-bottom: 20rpx;
 	.wave-bar {
 		width: 5rpx;
-		background: #FFF;
+		background: transparent;
 		border-radius: 10rpx;
 		animation: wave 0.6s ease-in-out infinite;
 	}

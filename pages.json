@@ -64,6 +64,30 @@
 					"navigationBarTitleText": "通知中心",
 					"navigationStyle": "custom"
 				}
+				},
+				{
+					"path": "pages/services/calendar/index",
+					"style": {
+						"navigationBarTitleText": "校历"
+					}
+				},
+				{
+					"path": "pages/services/grades/index",
+					"style": {
+						"navigationBarTitleText": "成绩查询"
+					}
+				},
+				{
+					"path": "pages/services/schedule/index",
+					"style": {
+						"navigationBarTitleText": "课表"
+					}
+				},
+				{
+					"path": "pages/services/lost-found/index",
+					"style": {
+						"navigationBarTitleText": "失物招领"
+					}
 				}
 			]
 		},
@@ -114,7 +138,8 @@
 				{
 					"path": "pages/accounts/index",
 					"style": {
-						"navigationBarTitleText": "账号管理"
+						"navigationBarTitleText": "账号管理",
+						"enablePullDownRefresh": true
 					}
 				},
 				{
@@ -127,6 +152,18 @@
 					"path": "pages/notifications/create/index",
 					"style": {
 						"navigationBarTitleText": "新建通知"
+					}
+				},
+				{
+					"path": "pages/lost-found/index",
+					"style": {
+						"navigationBarTitleText": "失物招领管理"
+					}
+				},
+				{
+					"path": "pages/calendar/index",
+					"style": {
+						"navigationBarTitleText": "校历管理"
 					}
 				}
 			]

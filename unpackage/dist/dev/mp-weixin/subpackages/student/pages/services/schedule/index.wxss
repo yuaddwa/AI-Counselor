@@ -1,0 +1,211 @@
+/* 自定义全局样式变量 */
+/* uni-app 内置变量覆盖 */
+.page.data-v-411084b8 {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #F5F6FA;
+}
+.page-header.data-v-411084b8 {
+  background: linear-gradient(135deg, #FFE8E8 0%, #FFF0F0 50%, #FFE8E8 100%);
+  flex-shrink: 0;
+}
+.header-status.data-v-411084b8 {
+  background: #FFE8E8;
+}
+.header-bar.data-v-411084b8 {
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32rpx;
+}
+.header-back.data-v-411084b8 {
+  width: 60rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s ease;
+}
+.header-back.data-v-411084b8:active {
+  transform: translateX(-6rpx) scale(1.1);
+}
+.back-arrow.data-v-411084b8 {
+  width: 20rpx;
+  height: 20rpx;
+  border-left: 3rpx solid #DD524D;
+  border-bottom: 3rpx solid #DD524D;
+  transform: rotate(45deg);
+}
+.header-title.data-v-411084b8 {
+  font-size: 38rpx;
+  color: #DD524D;
+  font-weight: 600;
+}
+.header-placeholder.data-v-411084b8 {
+  width: 60rpx;
+}
+.week-bar.data-v-411084b8 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 32rpx 20rpx;
+  gap: 32rpx;
+}
+.week-btn.data-v-411084b8 {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  transition: background 0.2s ease;
+}
+.week-btn.data-v-411084b8:active {
+  background: rgba(255, 255, 255, 0.9);
+}
+.week-arrow.data-v-411084b8 {
+  width: 12rpx;
+  height: 12rpx;
+  border-left: 3rpx solid #DD524D;
+  border-bottom: 3rpx solid #DD524D;
+}
+.week-arrow.left.data-v-411084b8 {
+  transform: rotate(45deg);
+}
+.week-arrow.right.data-v-411084b8 {
+  transform: rotate(-135deg);
+}
+.week-label.data-v-411084b8 {
+  font-size: 30rpx;
+  color: #DD524D;
+  font-weight: 600;
+}
+.day-tabs-wrap.data-v-411084b8 {
+  background: #FFF;
+  flex-shrink: 0;
+}
+.day-tabs.data-v-411084b8 {
+  display: flex;
+  padding: 16rpx 24rpx;
+}
+.day-tab.data-v-411084b8 {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12rpx 0;
+  border-radius: 12rpx;
+  position: relative;
+  transition: background 0.2s ease;
+}
+.day-tab.active.data-v-411084b8 {
+  background: #FFE8E8;
+}
+.day-tab.active .day-tab-name.data-v-411084b8 {
+  color: #DD524D;
+  font-weight: 600;
+}
+.day-tab.today .day-tab-name.data-v-411084b8 {
+  color: #DD524D;
+}
+.day-tab.today .day-tab-date.data-v-411084b8 {
+  color: #DD524D;
+}
+.day-tab-name.data-v-411084b8 {
+  font-size: 24rpx;
+  color: #666;
+  margin-bottom: 4rpx;
+}
+.day-tab-date.data-v-411084b8 {
+  font-size: 22rpx;
+  color: #999;
+}
+.day-tab-dot.data-v-411084b8 {
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: #DD524D;
+  margin-top: 6rpx;
+}
+.scroll-content.data-v-411084b8 {
+  flex: 1;
+  height: 0;
+  padding-bottom: 40rpx;
+}
+.course-list.data-v-411084b8 {
+  padding: 24rpx;
+}
+.course-card.data-v-411084b8 {
+  display: flex;
+  background: #FFF;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+  border-left: 6rpx solid;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.03);
+  transition: transform 0.15s ease;
+}
+.course-card.data-v-411084b8:active {
+  transform: scale(0.98);
+}
+.course-time.data-v-411084b8 {
+  width: 120rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+.time-start.data-v-411084b8, .time-end.data-v-411084b8 {
+  font-size: 24rpx;
+  color: #333;
+  font-weight: 500;
+}
+.time-sep.data-v-411084b8 {
+  font-size: 20rpx;
+  color: #CCC;
+  margin: 4rpx 0;
+}
+.time-section.data-v-411084b8 {
+  font-size: 20rpx;
+  color: #999;
+  margin-top: 8rpx;
+}
+.course-info.data-v-411084b8 {
+  flex: 1;
+}
+.course-name.data-v-411084b8 {
+  font-size: 30rpx;
+  color: #333;
+  font-weight: 500;
+  display: block;
+  margin-bottom: 12rpx;
+}
+.course-detail.data-v-411084b8 {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  margin-bottom: 6rpx;
+}
+.course-detail text.data-v-411084b8 {
+  font-size: 24rpx;
+  color: #999;
+}
+.course-icon.data-v-411084b8 {
+  font-size: 24rpx;
+  color: #CCC;
+}
+.empty-hint.data-v-411084b8 {
+  text-align: center;
+  padding: 80rpx 0;
+}
+.empty-hint text.data-v-411084b8 {
+  font-size: 26rpx;
+  color: #CCC;
+}
+.bottom-space.data-v-411084b8 {
+  height: 40rpx;
+}

@@ -58,7 +58,11 @@
 					<view class="section-title-wrap">
 						<view class="title-bar"></view>
 						<text class="section-title">待办提醒</text>
-					</view>
+					
+							<view class="leave-badge" v-if="pendingOrders.length > 0">
+								<text>{{ pendingOrders.length }} 待处理</text>
+							</view>
+						</view>
 					<view class="section-more" @click="goOrders">
 						<text>查看全部</text>
 						<view class="more-arrow-right"></view>
@@ -69,7 +73,7 @@
 					v-for="(item, i) in pendingOrders"
 					:key="i"
 					@click="goOrderDetail(item)"
-					
+
 				>
 					<view class="todo-left">
 						<text class="todo-student">{{ item.studentId }} {{ item.studentName }}</text>
@@ -89,7 +93,10 @@
 				<view class="quick-grid">
 					<view class="quick-item" v-for="(op, i) in quickOps" :key="i" @click="goQuick(op)" >
 						<view class="quick-icon" :style="{ background: op.bg }">
-							<text class="iconfont">{{ op.icon }}</text>
+							<text class="iconfont" :class="op.icon">
+						<view class="leave-badge" v-if="pendingOrders.length > 0">
+							<text>{{ pendingOrders.length }} 待处理</text>
+						</view></text>
 						</view>
 						<text class="quick-name">{{ op.name }}</text>
 					</view>
@@ -121,7 +128,7 @@
 <script>
 import CustomTabbar from '@/common/components/custom-tabbar.vue'
 import EmptyState from '@/common/components/empty-state.vue'
-import store from '@/common/store/index.js'
+import { api } from '@/common/utils/request.js'
 
 export default {
 	components: { CustomTabbar, EmptyState },
@@ -129,46 +136,84 @@ export default {
 		return {
 			statusBarHeight: 0,
 			stats: [
-				{ label: '今日咨询量', value: '128', bg: 'linear-gradient(135deg, #4A90D9, #6BA5E7)' },
-				{ label: '待处理工单', value: '5', bg: 'linear-gradient(135deg, #F0AD4E, #F5C97D)' },
-				{ label: '累计工单', value: '1,024', bg: 'linear-gradient(135deg, #4CD964, #7CE890)' },
-				{ label: 'AI解答率', value: '92%', bg: 'linear-gradient(135deg, #9B59B6, #B07CC6)' }
+				{ label: '今日咨询量', value: '0', bg: 'linear-gradient(135deg, #4A90D9, #6BA5E7)' },
+				{ label: '待处理工单', value: '0', bg: 'linear-gradient(135deg, #F0AD4E, #F5C97D)' },
+				{ label: '累计工单', value: '0', bg: 'linear-gradient(135deg, #4CD964, #7CE890)' },
+				{ label: 'AI解答率', value: '0%', bg: 'linear-gradient(135deg, #9B59B6, #B07CC6)' }
 			],
-			pendingOrders: [
-				{ id: 1, studentId: '2026001', studentName: '张同学', question: '关于休学申请的流程咨询', tagName: '政策咨询', tagColor: '#4A90D9' },
-				{ id: 2, studentId: '2026002', studentName: '李同学', question: '宿舍空调漏水需要报修', tagName: '后勤报修', tagColor: '#F0AD4E' },
-				{ id: 3, studentId: '2026003', studentName: '王同学', question: '近期情绪低落，想找人聊聊', tagName: '心理问题', tagColor: '#DD524D' }
-			],
+			pendingOrders: [],
+			pendingLeaves: [],
 			quickOps: [
-				{ name: '导入账号', icon: '', bg: '#E8F4FD', path: '/subpackages/counselor/pages/accounts/index' },
-				{ name: '发布通知', icon: '', bg: '#FFF3E0', path: '/subpackages/counselor/pages/notifications/create/index' },
-				{ name: '知识库', icon: '', bg: '#E8F8E8', path: '/subpackages/counselor/pages/knowledge/index' },
-				{ name: '请假申请', icon: '', bg: '#F3E8FD', path: '/subpackages/counselor/pages/orders/index' }
+				{ name: '导入账号', icon: 'icon-zhanghaoguanli', bg: '#E8F4FD', path: '/subpackages/counselor/pages/accounts/index' },
+				{ name: '发布通知', icon: 'icon-tongzhi', bg: '#FFF3E0', path: '/subpackages/counselor/pages/notifications/create/index' },
+				{ name: '知识库', icon: 'icon-zhishi', bg: '#E8F8E8', path: '/subpackages/counselor/pages/knowledge/index' },
+				{ name: '请假申请', icon: 'icon-renwu', bg: '#F3E8FD', path: '/subpackages/counselor/pages/orders/index' },
+				{ name: '校历管理', icon: 'icon-xiaoli', bg: '#E8FFF3', path: '/subpackages/counselor/pages/calendar/index' },
+				{ name: '失物招领', icon: 'icon-shiwuzhaoling', bg: '#FFF8E8', path: '/subpackages/counselor/pages/lost-found/index' }
 			],
-			sysMessages: [
-				{ text: '知识库已更新：新增报到指南文档', time: '10分钟前', read: false },
-				{ text: '有3个新工单待处理', time: '30分钟前', read: false },
-				{ text: '数据统计报告已生成', time: '2小时前', read: true }
-			],
+			sysMessages: [],
 			counselorTabs: [
-				{ text: '工作台', icon: '', url: '/subpackages/counselor/pages/workspace/index' },
-				{ text: '知识库', icon: '', url: '/subpackages/counselor/pages/knowledge/index' },
-				{ text: '工单', icon: '', url: '/subpackages/counselor/pages/orders/index' },
-				{ text: '数据', icon: '', url: '/subpackages/counselor/pages/data/index' },
-				{ text: '我的', icon: '', url: '/subpackages/profile/pages/counselor/index' }
-			]
-		}
-	},
-	computed: {
-		pendingLeaves() {
-			return store.state.leaveRequests.filter(r => r.status === 'pending')
+					{ text: '工作台', icon: 'icon-gongzuotai', url: '/subpackages/counselor/pages/workspace/index' },
+					{ text: '知识库', icon: 'icon-zhishi', url: '/subpackages/counselor/pages/knowledge/index' },
+					{ text: '工单', icon: 'icon-gongdan', url: '/subpackages/counselor/pages/orders/index' },
+					{ text: '数据', icon: 'icon-shuju', url: '/subpackages/counselor/pages/data/index' },
+					{ text: '我的', icon: 'icon-wode', url: '/subpackages/profile/pages/counselor/index' }
+				]
 		}
 	},
 	created() {
 		const windowInfo = uni.getWindowInfo()
 		this.statusBarHeight = windowInfo.statusBarHeight || 0
+		this.loadData()
 	},
 	methods: {
+		async loadData() {
+			try {
+				const res = await api.getWorkspaceData()
+				if (res) {
+					console.log('workspace data:', JSON.stringify(res))
+					const s = res.stats || {}
+					this.stats[0].value = String(s.todayConsult || 0)
+					this.stats[1].value = String(s.pendingOrders || 0)
+					this.stats[2].value = String(s.totalOrders || 0)
+					this.stats[3].value = s.aiRate || '0%'
+				}
+			} catch (e) {
+				console.error('加载工作台数据失败', e)
+			}
+			try {
+				const res = await api.getOrders({ status: 'pending', page: 1, pageSize: 10 })
+				if (res) {
+					this.pendingOrders = (res.orders || []).map(item => ({
+						id: item.id,
+						studentId: item.studentId,
+						studentName: item.studentName,
+						question: item.question || item.title || item.content,
+						tagName: item.type || '待处理',
+						tagColor: '#4A90D9',
+							tagBg: '#E8F4FD'
+					}))
+				}
+			} catch (e) {
+				console.error('加载工单失败', e)
+			}
+			try {
+				const res = await api.getCounselorLeaveList({ status: 'pending', page: 1, pageSize: 10 })
+				if (res) {
+					this.pendingLeaves = (res.records || []).map(item => ({
+						id: item.id,
+						studentId: item.studentId,
+						studentName: item.studentName,
+						leaveType: item.leaveType,
+						reason: item.reason,
+						startTime: item.startTime,
+						endTime: item.endTime
+					}))
+				}
+			} catch (e) {
+				console.error('加载请假列表失败', e)
+			}
+		},
 		goNotifications() {
 			uni.navigateTo({ url: '/subpackages/counselor/pages/notifications/index' })
 		},
@@ -181,9 +226,18 @@ export default {
 		goQuick(op) {
 			uni.navigateTo({ url: op.path })
 		},
-		approveLeave(item, status) {
-			store.mutations.updateLeaveStatus(item.id, status)
-			uni.showToast({ title: status === 'approved' ? '已批准' : '已拒绝', icon: 'success' })
+		async approveLeave(item, status) {
+			try {
+				const res = await api.approveLeave(item.id, { status })
+				if (res) {
+					this.pendingLeaves = this.pendingLeaves.filter(l => l.id !== item.id)
+					uni.showToast({ title: status === 'approved' ? '已批准' : '已拒绝', icon: 'success' })
+				} else {
+					uni.showToast({ title: res.msg || '操作失败', icon: 'none' })
+				}
+			} catch (e) {
+				uni.showToast({ title: '操作失败', icon: 'none' })
+			}
 		},
 		onTabChange({ item }) {
 			uni.reLaunch({ url: item.url })

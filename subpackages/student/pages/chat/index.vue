@@ -118,6 +118,8 @@
 </template>
 
 <script>
+import { api } from '@/common/utils/request.js'
+
 export default {
 	data() {
 		return {
@@ -136,8 +138,12 @@ export default {
 	onLoad(options) {
 		const windowInfo = uni.getWindowInfo()
 		this.statusBarHeight = windowInfo.statusBarHeight || 0
-		this.sessionId = Date.now().toString()
+		this.sessionId = ''
 
+		if (options.sessionId) {
+			this.sessionId = options.sessionId
+			this.loadSessionDetail(options.sessionId)
+		}
 		if (options.question) {
 			this.inputText = decodeURIComponent(options.question)
 			this.$nextTick(() => this.sendMessage())
@@ -158,7 +164,29 @@ export default {
 				this.scrollTop = this.messages.length * 1000
 			})
 		},
-		sendMessage() {
+		async loadSessionDetail(sessionId) {
+			try {
+				const res = await api.getChatDetail(sessionId)
+				if (res) {
+					this.sessionId = res.sessionId
+					this.messages = (res.messages || []).map(msg => ({
+						role: msg.role === 'assistant' ? 'ai' : msg.role,
+						content: msg.content,
+						loading: false,
+						liked: false,
+						disliked: false,
+						time: msg.timestamp ? new Date(msg.timestamp).getTime() : Date.now()
+					}))
+					if (this.messages.length > 0) {
+						this.showTransfer = true
+					}
+					this.scrollToBottom()
+				}
+			} catch (e) {
+				console.error('加载会话详情失败', e)
+			}
+		},
+		async sendMessage() {
 			const text = this.inputText.trim()
 			if (!text) return
 
@@ -170,11 +198,10 @@ export default {
 			this.inputText = ''
 			this.scrollToBottom()
 
-			// 模拟AI回复
 			const aiMsg = {
 				role: 'ai',
 				content: '',
-				source: '新生入学指南',
+				source: '',
 				loading: true,
 				liked: false,
 				disliked: false,
@@ -183,24 +210,31 @@ export default {
 			this.messages.push(aiMsg)
 			this.scrollToBottom()
 
-			// 模拟流式输出
-			const reply = `关于"${text}"的问题，根据学校相关规定：\n\n1. 请携带相关证件到对应部门办理\n2. 办公时间：周一至周五 8:30-17:00\n3. 如需进一步帮助，可联系辅导员\n\n更多详情请查看办事指南或联系人工客服。`
-			let index = 0
-			aiMsg.loading = false
-			const timer = setInterval(() => {
-				if (index < reply.length) {
-					aiMsg.content += reply[index]
-					index++
-					this.scrollToBottom()
+			try {
+				const res = await api.sendMessage({ message: text, sessionId: this.sessionId || undefined })
+				if (res) {
+					this.sessionId = res.sessionId || this.sessionId
+					aiMsg.content = res.reply || '抱歉，暂时无法回答您的问题。'
 				} else {
-					clearInterval(timer)
-					this.showTransfer = true
+					aiMsg.content = '抱歉，服务暂时不可用，请稍后再试。'
 				}
-			}, 30)
+			} catch (e) {
+				console.error('发送消息失败', e)
+				aiMsg.content = '网络异常，请检查网络后重试。'
+			}
+			aiMsg.loading = false
+			this.showTransfer = true
+			this.scrollToBottom()
 		},
-		likeMsg(msg) {
+		async likeMsg(msg) {
 			msg.liked = !msg.liked
-			if (msg.liked) msg.disliked = false
+			if (msg.liked) {
+				msg.disliked = false
+				try {
+					const msgIndex = this.messages.indexOf(msg)
+					await api.submitFeedback({ sessionId: this.sessionId, messageIndex: msgIndex, type: 'like' })
+				} catch (e) {}
+			}
 		},
 		dislikeMsg(msg) {
 			msg.disliked = !msg.disliked
@@ -210,11 +244,14 @@ export default {
 				this.showFeedback = true
 			}
 		},
-		submitFeedback() {
+		async submitFeedback() {
 			if (!this.feedbackContent.trim()) {
 				uni.showToast({ title: '请输入反馈内容', icon: 'none' })
 				return
 			}
+			try {
+				await api.submitFeedback({ sessionId: this.sessionId, messageIndex: this.messages.indexOf(this.currentFeedbackMsg), type: 'dislike' })
+			} catch (e) {}
 			uni.showToast({ title: '反馈已提交', icon: 'success' })
 			this.showFeedback = false
 			this.feedbackContent = ''

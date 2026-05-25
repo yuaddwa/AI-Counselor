@@ -56,6 +56,8 @@
 </template>
 
 <script>
+import { api } from '@/common/utils/request.js'
+
 export default {
 	data() {
 		return {
@@ -69,10 +71,22 @@ export default {
 				{ label: '全体学生', value: 'all' },
 				{ label: '指定班级', value: 'class' }
 			],
-			classList: ['计算机2601', '计算机2602', '经管2601', '经管2602', '外语2601', '机械2601']
+			classList: []
 		}
 	},
+	created() {
+		this.loadClassList()
+	},
 	methods: {
+		async loadClassList() {
+			try {
+				const res = await api.getClasses()
+				const classes = res.classes || []
+				if (classes.length) {
+					this.classList = classes.map(c => c.className)
+				}
+			} catch (e) {}
+		},
 		toggleClass(cls) {
 			const idx = this.form.selectedClasses.indexOf(cls)
 			if (idx > -1) {
@@ -103,11 +117,21 @@ export default {
 				success: (res) => {
 					if (res.confirm) {
 						uni.showLoading({ title: '发布中...' })
-						setTimeout(() => {
+						const payload = {
+							title: this.form.title,
+							content: this.form.content,
+							type: this.form.scope,
+							classes: this.form.scope === 'class' ? this.form.selectedClasses : []
+						}
+						api.createNotification(payload).then(() => {
 							uni.hideLoading()
 							uni.showToast({ title: '发布成功', icon: 'success' })
 							setTimeout(() => uni.navigateBack(), 1500)
-						}, 1000)
+						}).catch((e) => {
+							uni.hideLoading()
+							console.error('发布通知失败', e)
+							uni.showToast({ title: '发布失败', icon: 'none' })
+						})
 					}
 				}
 			})

@@ -11,6 +11,10 @@ if (!Math) {
   "./subpackages/student/pages/services/campus-map/index.js";
   "./subpackages/student/pages/services/phonebook/index.js";
   "./subpackages/student/pages/services/notices/index.js";
+  "./subpackages/student/pages/services/calendar/index.js";
+  "./subpackages/student/pages/services/grades/index.js";
+  "./subpackages/student/pages/services/schedule/index.js";
+  "./subpackages/student/pages/services/lost-found/index.js";
   "./subpackages/counselor/pages/workspace/index.js";
   "./subpackages/counselor/pages/knowledge/index.js";
   "./subpackages/counselor/pages/knowledge/edit/index.js";
@@ -20,6 +24,8 @@ if (!Math) {
   "./subpackages/counselor/pages/accounts/index.js";
   "./subpackages/counselor/pages/notifications/index.js";
   "./subpackages/counselor/pages/notifications/create/index.js";
+  "./subpackages/counselor/pages/lost-found/index.js";
+  "./subpackages/counselor/pages/calendar/index.js";
   "./subpackages/profile/pages/student/index.js";
   "./subpackages/profile/pages/counselor/index.js";
   "./subpackages/profile/pages/settings/index.js";

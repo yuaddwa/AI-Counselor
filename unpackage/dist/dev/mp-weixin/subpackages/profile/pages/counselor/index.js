@@ -1,6 +1,7 @@
 "use strict";
 const common_vendor = require("../../../../common/vendor.js");
 const common_store_index = require("../../../../common/store/index.js");
+const common_utils_request = require("../../../../common/utils/request.js");
 const CustomTabbar = () => "../../../../common/components/custom-tabbar.js";
 const EmptyState = () => "../../../../common/components/empty-state.js";
 const _sfc_main = {
@@ -14,37 +15,54 @@ const _sfc_main = {
       passwordForm: { oldPwd: "", newPwd: "", confirmPwd: "" },
       userInfo: {},
       stats: [
-        { num: 48, label: "学生" },
-        { num: 15, label: "工单" },
-        { num: 32, label: "知识库" }
+        { num: 0, label: "学生" },
+        { num: 0, label: "工单" },
+        { num: 0, label: "知识库" }
       ],
-      operationLogs: [
-        { action: "导入了48个学生账号", time: "05-20 14:30" },
-        { action: "发布了通知：开学报到须知", time: "05-20 10:00" },
-        { action: "完结了工单 #1024", time: "05-19 16:30" },
-        { action: "新增了知识库条目", time: "05-19 10:15" },
-        { action: "修改了系统设置", time: "05-18 09:00" }
-      ],
+      operationLogs: [],
+      notificationSettings: null,
       counselorTabs: [
-        { text: "工作台", icon: "", url: "/subpackages/counselor/pages/workspace/index" },
-        { text: "知识库", icon: "", url: "/subpackages/counselor/pages/knowledge/index" },
-        { text: "工单", icon: "", url: "/subpackages/counselor/pages/orders/index" },
-        { text: "数据", icon: "", url: "/subpackages/counselor/pages/data/index" },
-        { text: "我的", icon: "", url: "/subpackages/profile/pages/counselor/index" }
+        { text: "工作台", icon: "icon-gongzuotai", url: "/subpackages/counselor/pages/workspace/index" },
+        { text: "知识库", icon: "icon-zhishi", url: "/subpackages/counselor/pages/knowledge/index" },
+        { text: "工单", icon: "icon-gongdan", url: "/subpackages/counselor/pages/orders/index" },
+        { text: "数据", icon: "icon-shuju", url: "/subpackages/counselor/pages/data/index" },
+        { text: "我的", icon: "icon-wode", url: "/subpackages/profile/pages/counselor/index" }
       ]
     };
   },
   created() {
     const windowInfo = common_vendor.index.getWindowInfo();
     this.statusBarHeight = windowInfo.statusBarHeight || 0;
-    this.userInfo = common_store_index.store.state.userInfo || { name: "李老师", id: "T001", role: "辅导员" };
+    this.userInfo = common_store_index.store.state.userInfo || { name: "", id: "", role: "" };
+    this.loadStats();
+    this.loadOperationLogs();
+    this.loadNotificationSettings();
   },
   methods: {
+    async loadStats() {
+      try {
+        const res = await common_utils_request.api.getCounselorStats();
+        if (res) {
+          this.stats = [
+            { num: res.studentCount ?? 0, label: "学生" },
+            { num: res.todayOrders ?? 0, label: "工单" },
+            { num: res.knowledgeCount ?? 0, label: "知识库" }
+          ];
+        }
+      } catch (e) {
+      }
+    },
     onAvatarTap() {
       this.avatarSpin = true;
       setTimeout(() => {
         this.avatarSpin = false;
       }, 800);
+    },
+    goStatPage(label) {
+      const map = { "学生": "accounts", "工单": "orders", "知识库": "knowledge" };
+      const type = map[label];
+      if (type)
+        this.goPage(type);
     },
     goPage(type) {
       switch (type) {
@@ -53,16 +71,50 @@ const _sfc_main = {
           break;
         case "logs":
           this.showLogs = true;
+          this.loadOperationLogs();
           break;
         case "accounts":
           common_vendor.index.navigateTo({ url: "/subpackages/counselor/pages/accounts/index" });
+          break;
+        case "knowledge":
+          common_vendor.index.navigateTo({ url: "/subpackages/counselor/pages/knowledge/index" });
+          break;
+        case "orders":
+          common_vendor.index.navigateTo({ url: "/subpackages/counselor/pages/orders/index" });
           break;
         case "settings":
           common_vendor.index.navigateTo({ url: "/subpackages/profile/pages/settings/index" });
           break;
       }
     },
-    changePassword() {
+    async loadOperationLogs() {
+      try {
+        const res = await common_utils_request.api.getOperationLogs({ page: 1, pageSize: 20 });
+        this.operationLogs = (res.logs || []).map((item) => ({
+          action: item.action || item.content,
+          time: item.time || item.createdAt
+        }));
+      } catch (e) {
+        common_vendor.index.__f__("error", "at subpackages/profile/pages/counselor/index.vue:192", "加载操作日志失败", e);
+      }
+    },
+    async loadNotificationSettings() {
+      try {
+        const res = await common_utils_request.api.getCounselorNotificationSettings();
+        this.notificationSettings = res;
+      } catch (e) {
+        common_vendor.index.__f__("error", "at subpackages/profile/pages/counselor/index.vue:200", "加载通知设置失败", e);
+      }
+    },
+    async saveNotificationSettings() {
+      try {
+        await common_utils_request.api.updateCounselorNotificationSettings(this.notificationSettings);
+        common_vendor.index.showToast({ title: "设置已保存", icon: "success" });
+      } catch (e) {
+        common_vendor.index.showToast({ title: e.msg || "保存失败", icon: "none" });
+      }
+    },
+    async changePassword() {
       if (!this.passwordForm.oldPwd || !this.passwordForm.newPwd) {
         common_vendor.index.showToast({ title: "请填写完整", icon: "none" });
         return;
@@ -71,9 +123,18 @@ const _sfc_main = {
         common_vendor.index.showToast({ title: "两次密码不一致", icon: "none" });
         return;
       }
-      common_vendor.index.showToast({ title: "修改成功", icon: "success" });
-      this.showPassword = false;
-      this.passwordForm = { oldPwd: "", newPwd: "", confirmPwd: "" };
+      try {
+        await common_utils_request.api.updatePassword({
+          oldPassword: this.passwordForm.oldPwd,
+          newPassword: this.passwordForm.newPwd,
+          confirmPassword: this.passwordForm.confirmPwd
+        });
+        common_vendor.index.showToast({ title: "修改成功", icon: "success" });
+        this.showPassword = false;
+        this.passwordForm = { oldPwd: "", newPwd: "", confirmPwd: "" };
+      } catch (e) {
+        common_vendor.index.showToast({ title: e.msg || "修改失败", icon: "none" });
+      }
     },
     handleLogout() {
       common_vendor.index.showModal({
@@ -110,7 +171,8 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
       return {
         a: common_vendor.t(stat.num),
         b: common_vendor.t(stat.label),
-        c: i
+        c: i,
+        d: common_vendor.o(($event) => $options.goStatPage(stat.label), i)
       };
     }),
     i: common_vendor.o(($event) => $options.goPage("password")),

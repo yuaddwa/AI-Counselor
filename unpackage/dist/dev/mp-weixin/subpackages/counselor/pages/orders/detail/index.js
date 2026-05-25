@@ -1,33 +1,55 @@
 "use strict";
 const common_vendor = require("../../../../../common/vendor.js");
+const common_utils_request = require("../../../../../common/utils/request.js");
 const _sfc_main = {
   data() {
     return {
+      orderId: "",
       order: {
-        id: 1,
-        studentId: "2026001",
-        studentName: "张同学",
-        className: "计算机2601",
-        question: "关于休学申请的流程咨询，需要准备什么材料？一般需要多长时间能办理完成？",
+        id: "",
+        studentId: "",
+        studentName: "",
+        className: "",
+        question: "",
         status: "pending",
-        createTime: "2026-05-20 14:30",
-        aiReply: "关于休学申请：\n1. 需要填写《休学申请表》\n2. 提供相关证明材料（如医院证明）\n3. 辅导员签字审批\n4. 学院审批\n5. 教务处备案\n\n一般需要5-10个工作日完成审批。",
-        chatHistory: [
-          { role: "student", content: "我想办理休学，需要什么手续？" },
-          { role: "ai", content: "办理休学需要以下材料：1. 休学申请表 2. 相关证明材料。请到教务处领取申请表。" },
-          { role: "student", content: "一般多久能办完？需要辅导员签字吗？" }
-        ]
+        createTime: "",
+        aiReply: "",
+        chatHistory: []
       },
-      tags: ["政策咨询", "后勤报修", "心理问题", "教务问题", "其他"],
+      tags: [],
       selectedTag: "",
       replyContent: ""
     };
   },
   onLoad(options) {
-    if (options.id)
-      ;
+    if (options.id) {
+      this.orderId = options.id;
+      this.loadDetail(options.id);
+    }
   },
   methods: {
+    async loadDetail(id) {
+      try {
+        const res = await common_utils_request.api.getOrderDetail(id);
+        const data = res;
+        this.order = {
+          id: data.id,
+          studentId: data.studentId || "",
+          studentName: data.studentName || "",
+          className: data.className || "",
+          question: data.question || "",
+          status: data.status || "pending",
+          createTime: data.createTime || "",
+          aiReply: data.aiReply || "",
+          chatHistory: data.chatHistory || []
+        };
+        if (data.tags) {
+          this.selectedTag = data.tags;
+        }
+      } catch (e) {
+        common_vendor.index.showToast({ title: "加载详情失败", icon: "none" });
+      }
+    },
     attachImage() {
       common_vendor.index.chooseImage({
         count: 3,
@@ -36,9 +58,14 @@ const _sfc_main = {
         }
       });
     },
-    handleAccept() {
-      this.order.status = "processing";
-      common_vendor.index.showToast({ title: "已受理", icon: "success" });
+    async handleAccept() {
+      try {
+        await common_utils_request.api.updateOrderStatus({ orderId: this.orderId, status: "processing" });
+        this.order.status = "processing";
+        common_vendor.index.showToast({ title: "已受理", icon: "success" });
+      } catch (e) {
+        common_vendor.index.showToast({ title: "操作失败", icon: "none" });
+      }
     },
     handleComplete() {
       if (!this.replyContent.trim()) {
@@ -48,11 +75,17 @@ const _sfc_main = {
       common_vendor.index.showModal({
         title: "确认完结",
         content: "确定完结此工单？",
-        success: (res) => {
+        success: async (res) => {
           if (res.confirm) {
-            this.order.status = "completed";
-            common_vendor.index.showToast({ title: "已完结", icon: "success" });
-            setTimeout(() => common_vendor.index.navigateBack(), 1500);
+            try {
+              await common_utils_request.api.replyOrder({ orderId: this.orderId, content: this.replyContent });
+              await common_utils_request.api.updateOrderStatus({ orderId: this.orderId, status: "completed" });
+              this.order.status = "completed";
+              common_vendor.index.showToast({ title: "已完结", icon: "success" });
+              setTimeout(() => common_vendor.index.navigateBack(), 1500);
+            } catch (e) {
+              common_vendor.index.showToast({ title: "操作失败", icon: "none" });
+            }
           }
         }
       });
@@ -61,10 +94,15 @@ const _sfc_main = {
       common_vendor.index.showModal({
         title: "确认退回",
         content: "确定退回此工单？",
-        success: (res) => {
+        success: async (res) => {
           if (res.confirm) {
-            this.order.status = "pending";
-            common_vendor.index.showToast({ title: "已退回", icon: "success" });
+            try {
+              await common_utils_request.api.updateOrderStatus({ orderId: this.orderId, status: "pending" });
+              this.order.status = "pending";
+              common_vendor.index.showToast({ title: "已退回", icon: "success" });
+            } catch (e) {
+              common_vendor.index.showToast({ title: "操作失败", icon: "none" });
+            }
           }
         }
       });

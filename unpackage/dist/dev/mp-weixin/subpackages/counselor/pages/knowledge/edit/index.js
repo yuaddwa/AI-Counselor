@@ -1,5 +1,6 @@
 "use strict";
 const common_vendor = require("../../../../../common/vendor.js");
+const common_utils_request = require("../../../../../common/utils/request.js");
 const _sfc_main = {
   data() {
     return {
@@ -10,13 +11,7 @@ const _sfc_main = {
         categoryId: "",
         categoryName: ""
       },
-      categories: [
-        { id: "1", name: "新生报到" },
-        { id: "2", name: "教务管理" },
-        { id: "3", name: "后勤服务" },
-        { id: "4", name: "奖助政策" },
-        { id: "5", name: "军训指南" }
-      ]
+      categories: []
     };
   },
   computed: {
@@ -25,18 +20,47 @@ const _sfc_main = {
     }
   },
   onLoad(options) {
+    this.loadCategories();
     if (options.id) {
       this.form.id = options.id;
-      this.form.title = "2026年新生报到全流程指南";
-      this.form.categoryId = "1";
-      this.form.categoryName = "新生报到";
-      this.form.content = "新生报到详细流程内容...";
+      this.loadDetail(options.id);
       common_vendor.index.setNavigationBarTitle({ title: "编辑知识库" });
     } else {
       common_vendor.index.setNavigationBarTitle({ title: "新建知识库" });
     }
   },
   methods: {
+    async loadCategories() {
+      try {
+        const res = await common_utils_request.api.getKnowledgeCategories();
+        const list = res.list || res || [];
+        if (list.length) {
+          this.categories = list;
+        }
+      } catch (e) {
+      }
+    },
+    async loadDetail(id) {
+      try {
+        common_vendor.index.showLoading({ title: "加载中..." });
+        const res = await common_utils_request.api.getKnowledgeList({ id });
+        const list = res;
+        const item = Array.isArray(list) ? list.find((k) => k.id == id) : list;
+        if (item) {
+          this.form.title = item.title || "";
+          this.form.content = item.content || "";
+          this.form.categoryId = item.categoryId || item.category || "";
+          const cat = this.categories.find((c) => c.id == this.form.categoryId);
+          if (cat) {
+            this.form.categoryName = cat.name;
+          }
+        }
+      } catch (e) {
+        common_vendor.index.showToast({ title: "加载失败", icon: "none" });
+      } finally {
+        common_vendor.index.hideLoading();
+      }
+    },
     onCategoryChange(e) {
       const index = e.detail.value;
       this.form.categoryId = this.categories[index].id;
@@ -51,12 +75,23 @@ const _sfc_main = {
         common_vendor.index.showToast({ title: "请选择分类", icon: "none" });
         return;
       }
+      this.doSave();
+    },
+    async doSave() {
       common_vendor.index.showLoading({ title: "保存中..." });
-      setTimeout(() => {
+      try {
+        await common_utils_request.api.saveKnowledge({
+          title: this.form.title,
+          content: this.form.content,
+          category: this.form.categoryId
+        });
         common_vendor.index.hideLoading();
         common_vendor.index.showToast({ title: "保存成功", icon: "success" });
         setTimeout(() => common_vendor.index.navigateBack(), 1500);
-      }, 1e3);
+      } catch (e) {
+        common_vendor.index.hideLoading();
+        common_vendor.index.showToast({ title: e.msg || "保存失败", icon: "none" });
+      }
     },
     handleCancel() {
       common_vendor.index.navigateBack();

@@ -86,35 +86,57 @@
 </template>
 
 <script>
+import { api } from '@/common/utils/request.js'
+
 export default {
 	data() {
 		return {
+			orderId: '',
 			order: {
-				id: 1,
-				studentId: '2026001',
-				studentName: '张同学',
-				className: '计算机2601',
-				question: '关于休学申请的流程咨询，需要准备什么材料？一般需要多长时间能办理完成？',
+				id: '',
+				studentId: '',
+				studentName: '',
+				className: '',
+				question: '',
 				status: 'pending',
-				createTime: '2026-05-20 14:30',
-				aiReply: '关于休学申请：\n1. 需要填写《休学申请表》\n2. 提供相关证明材料（如医院证明）\n3. 辅导员签字审批\n4. 学院审批\n5. 教务处备案\n\n一般需要5-10个工作日完成审批。',
-				chatHistory: [
-					{ role: 'student', content: '我想办理休学，需要什么手续？' },
-					{ role: 'ai', content: '办理休学需要以下材料：1. 休学申请表 2. 相关证明材料。请到教务处领取申请表。' },
-					{ role: 'student', content: '一般多久能办完？需要辅导员签字吗？' }
-				]
+				createTime: '',
+				aiReply: '',
+				chatHistory: []
 			},
-			tags: ['政策咨询', '后勤报修', '心理问题', '教务问题', '其他'],
+			tags: [],
 			selectedTag: '',
 			replyContent: ''
 		}
 	},
 	onLoad(options) {
 		if (options.id) {
-			// 加载工单详情
+			this.orderId = options.id
+			this.loadDetail(options.id)
 		}
 	},
 	methods: {
+		async loadDetail(id) {
+			try {
+				const res = await api.getOrderDetail(id)
+				const data = res
+				this.order = {
+					id: data.id,
+					studentId: data.studentId || '',
+					studentName: data.studentName || '',
+					className: data.className || '',
+					question: data.question || '',
+					status: data.status || 'pending',
+					createTime: data.createTime || '',
+					aiReply: data.aiReply || '',
+					chatHistory: data.chatHistory || []
+				}
+				if (data.tags) {
+					this.selectedTag = data.tags
+				}
+			} catch (e) {
+				uni.showToast({ title: '加载详情失败', icon: 'none' })
+			}
+		},
 		attachImage() {
 			uni.chooseImage({
 				count: 3,
@@ -123,9 +145,14 @@ export default {
 				}
 			})
 		},
-		handleAccept() {
-			this.order.status = 'processing'
-			uni.showToast({ title: '已受理', icon: 'success' })
+		async handleAccept() {
+			try {
+				await api.updateOrderStatus({ orderId: this.orderId, status: 'processing' })
+				this.order.status = 'processing'
+				uni.showToast({ title: '已受理', icon: 'success' })
+			} catch (e) {
+				uni.showToast({ title: '操作失败', icon: 'none' })
+			}
 		},
 		handleComplete() {
 			if (!this.replyContent.trim()) {
@@ -135,11 +162,17 @@ export default {
 			uni.showModal({
 				title: '确认完结',
 				content: '确定完结此工单？',
-				success: (res) => {
+				success: async (res) => {
 					if (res.confirm) {
-						this.order.status = 'completed'
-						uni.showToast({ title: '已完结', icon: 'success' })
-						setTimeout(() => uni.navigateBack(), 1500)
+						try {
+							await api.replyOrder({ orderId: this.orderId, content: this.replyContent })
+							await api.updateOrderStatus({ orderId: this.orderId, status: 'completed' })
+							this.order.status = 'completed'
+							uni.showToast({ title: '已完结', icon: 'success' })
+							setTimeout(() => uni.navigateBack(), 1500)
+						} catch (e) {
+							uni.showToast({ title: '操作失败', icon: 'none' })
+						}
 					}
 				}
 			})
@@ -148,10 +181,15 @@ export default {
 			uni.showModal({
 				title: '确认退回',
 				content: '确定退回此工单？',
-				success: (res) => {
+				success: async (res) => {
 					if (res.confirm) {
-						this.order.status = 'pending'
-						uni.showToast({ title: '已退回', icon: 'success' })
+						try {
+							await api.updateOrderStatus({ orderId: this.orderId, status: 'pending' })
+							this.order.status = 'pending'
+							uni.showToast({ title: '已退回', icon: 'success' })
+						} catch (e) {
+							uni.showToast({ title: '操作失败', icon: 'none' })
+						}
 					}
 				}
 			})

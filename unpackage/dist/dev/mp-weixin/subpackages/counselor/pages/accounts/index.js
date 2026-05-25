@@ -17,16 +17,11 @@ const _sfc_main = {
       newCounselor: { workId: "", name: "", password: "", role: "" },
       roleOptions: ["普通辅导员", "高级管理员"],
       importResult: { success: 0, fail: 0, errors: [] },
-      accounts: [
-        { studentId: "2026001", name: "张同学", className: "计算机2601", loginStatus: true, createTime: "05-15", disabled: false },
-        { studentId: "2026002", name: "李同学", className: "计算机2602", loginStatus: false, createTime: "05-15", disabled: false },
-        { studentId: "2026003", name: "王同学", className: "经管2601", loginStatus: true, createTime: "05-14", disabled: false },
-        { studentId: "2026004", name: "赵同学", className: "外语2601", loginStatus: false, createTime: "05-14", disabled: true }
-      ],
-      subAccounts: [
-        { workId: "T001", name: "李老师", role: "普通辅导员", disabled: false },
-        { workId: "T002", name: "王老师", role: "高级管理员", disabled: false }
-      ]
+      accounts: [],
+      subAccounts: [],
+      classList: [],
+      selectedClass: "",
+      classViewMode: true
     };
   },
   computed: {
@@ -41,12 +36,58 @@ const _sfc_main = {
   },
   created() {
     this.loadAccounts();
+    this.loadClasses();
+  },
+  onPullDownRefresh() {
+    this.loadAccounts();
+    this.loadClasses();
+    setTimeout(() => {
+      common_vendor.index.stopPullDownRefresh();
+    }, 500);
   },
   methods: {
+    loadClasses() {
+      common_utils_request.api.getClasses().then((data) => {
+        const classes = data.classes || [];
+        this.classList = classes.map((c) => ({
+          name: c.className,
+          count: c.studentCount ?? 0
+        }));
+        this.updateClassCount();
+      }).catch(() => {
+      });
+    },
+    updateClassCount() {
+      if (this.classList.length === 0 || this.accounts.length === 0)
+        return;
+      const countMap = {};
+      this.accounts.forEach((a) => {
+        if (a.className) {
+          countMap[a.className] = (countMap[a.className] || 0) + 1;
+        }
+      });
+      this.classList.forEach((c) => {
+        if (countMap[c.name] !== void 0) {
+          c.count = countMap[c.name];
+        }
+      });
+    },
+    selectClass(cls) {
+      this.selectedClass = cls.name;
+      this.classViewMode = false;
+      this.searchKeyword = cls.name;
+    },
+    backToClasses() {
+      this.classViewMode = true;
+      this.selectedClass = "";
+      this.searchKeyword = "";
+    },
     loadAccounts() {
       common_utils_request.api.getAccounts({ type: "student" }).then((data) => {
-        if (data.students)
+        if (data.students) {
           this.accounts = data.students;
+          this.updateClassCount();
+        }
       }).catch(() => {
       });
       common_utils_request.api.getCounselorSubAccounts().then((data) => {
@@ -56,8 +97,9 @@ const _sfc_main = {
       });
     },
     downloadTemplate() {
-      common_utils_request.api.downloadTemplate().catch(() => {
-        common_vendor.index.showToast({ title: "模板下载失败", icon: "none" });
+      common_utils_request.api.downloadTemplate().catch((err) => {
+        common_vendor.index.__f__("error", "at subpackages/counselor/pages/accounts/index.vue:259", "下载模板失败:", JSON.stringify(err));
+        common_vendor.index.showToast({ title: err.msg || "模板下载失败", icon: "none" });
       });
     },
     importExcel() {
@@ -67,20 +109,18 @@ const _sfc_main = {
         extension: ["xlsx", "xls"],
         success: (res) => {
           const filePath = res.tempFiles[0].path;
+          common_vendor.index.__f__("log", "at subpackages/counselor/pages/accounts/index.vue:270", "chooseFile:", filePath);
           this.uploading = true;
           this.uploadProgress = 0;
           common_utils_request.api.batchImportAccounts(filePath).then((data) => {
             this.uploading = false;
-            this.importResult = {
-              success: data.success || 0,
-              fail: data.fail || 0,
-              errors: data.errors || []
-            };
-            this.showImportResult = true;
+            common_vendor.index.showToast({ title: "导入成功", icon: "success" });
             this.loadAccounts();
-          }).catch(() => {
+            this.updateClassCount();
+          }).catch((err) => {
             this.uploading = false;
-            common_vendor.index.showToast({ title: "导入失败", icon: "none" });
+            common_vendor.index.__f__("error", "at subpackages/counselor/pages/accounts/index.vue:280", "导入失败:", JSON.stringify(err));
+            common_vendor.index.showToast({ title: err.msg || "导入失败", icon: "none" });
           });
         }
       });
@@ -106,6 +146,7 @@ const _sfc_main = {
           createTime: "刚刚",
           disabled: false
         });
+        this.updateClassCount();
         this.showAddStudent = false;
         this.newStudent = { studentId: "", name: "", className: "", password: "123456" };
         common_vendor.index.showToast({ title: "添加成功", icon: "success" });
@@ -195,12 +236,28 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
     d: common_vendor.o(($event) => $data.activeTab = 1),
     e: $data.activeTab === 0
   }, $data.activeTab === 0 ? common_vendor.e({
-    f: common_vendor.o(($event) => $data.showAddStudent = true),
-    g: common_vendor.o((...args) => $options.downloadTemplate && $options.downloadTemplate(...args)),
-    h: common_vendor.o((...args) => $options.importExcel && $options.importExcel(...args)),
-    i: $data.searchKeyword,
-    j: common_vendor.o(($event) => $data.searchKeyword = $event.detail.value),
-    k: common_vendor.f($options.filteredAccounts, (acc, i, i0) => {
+    f: $data.classViewMode
+  }, $data.classViewMode ? common_vendor.e({
+    g: common_vendor.o(($event) => $data.showAddStudent = true),
+    h: common_vendor.o((...args) => $options.downloadTemplate && $options.downloadTemplate(...args)),
+    i: common_vendor.o((...args) => $options.importExcel && $options.importExcel(...args)),
+    j: common_vendor.f($data.classList, (cls, i, i0) => {
+      return {
+        a: common_vendor.t(cls.name),
+        b: common_vendor.t(cls.count),
+        c: i,
+        d: common_vendor.o(($event) => $options.selectClass(cls), i)
+      };
+    }),
+    k: $data.classList.length === 0
+  }, $data.classList.length === 0 ? {
+    l: common_vendor.p({
+      text: "暂无班级数据"
+    })
+  } : {}) : common_vendor.e({
+    m: common_vendor.o((...args) => $options.backToClasses && $options.backToClasses(...args)),
+    n: common_vendor.t($data.selectedClass),
+    o: common_vendor.f($options.filteredAccounts, (acc, i, i0) => {
       return {
         a: common_vendor.t(acc.studentId),
         b: common_vendor.t(acc.name),
@@ -215,16 +272,16 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
         k: i
       };
     }),
-    l: $options.filteredAccounts.length === 0
+    p: $options.filteredAccounts.length === 0
   }, $options.filteredAccounts.length === 0 ? {
-    m: common_vendor.p({
+    q: common_vendor.p({
       text: "暂无学生账号"
     })
-  } : {}) : {}, {
-    n: $data.activeTab === 1
+  } : {})) : {}, {
+    r: $data.activeTab === 1
   }, $data.activeTab === 1 ? {
-    o: common_vendor.o(($event) => $data.showAddCounselor = true),
-    p: common_vendor.f($data.subAccounts, (acc, i, i0) => {
+    s: common_vendor.o(($event) => $data.showAddCounselor = true),
+    t: common_vendor.f($data.subAccounts, (acc, i, i0) => {
       return {
         a: common_vendor.t(acc.workId),
         b: common_vendor.t(acc.name),
@@ -238,64 +295,64 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
       };
     })
   } : {}, {
-    q: $data.showAddStudent
+    v: $data.showAddStudent
   }, $data.showAddStudent ? {
-    r: $data.newStudent.studentId,
-    s: common_vendor.o(($event) => $data.newStudent.studentId = $event.detail.value),
-    t: $data.newStudent.name,
-    v: common_vendor.o(($event) => $data.newStudent.name = $event.detail.value),
-    w: $data.newStudent.className,
-    x: common_vendor.o(($event) => $data.newStudent.className = $event.detail.value),
-    y: $data.newStudent.password,
-    z: common_vendor.o(($event) => $data.newStudent.password = $event.detail.value),
-    A: common_vendor.o(($event) => $data.showAddStudent = false),
-    B: common_vendor.o((...args) => $options.addStudent && $options.addStudent(...args)),
-    C: common_vendor.o(() => {
+    w: $data.newStudent.studentId,
+    x: common_vendor.o(($event) => $data.newStudent.studentId = $event.detail.value),
+    y: $data.newStudent.name,
+    z: common_vendor.o(($event) => $data.newStudent.name = $event.detail.value),
+    A: $data.newStudent.className,
+    B: common_vendor.o(($event) => $data.newStudent.className = $event.detail.value),
+    C: $data.newStudent.password,
+    D: common_vendor.o(($event) => $data.newStudent.password = $event.detail.value),
+    E: common_vendor.o(($event) => $data.showAddStudent = false),
+    F: common_vendor.o((...args) => $options.addStudent && $options.addStudent(...args)),
+    G: common_vendor.o(() => {
     }),
-    D: common_vendor.o(($event) => $data.showAddStudent = false)
+    H: common_vendor.o(($event) => $data.showAddStudent = false)
   } : {}, {
-    E: $data.showAddCounselor
+    I: $data.showAddCounselor
   }, $data.showAddCounselor ? {
-    F: $data.newCounselor.workId,
-    G: common_vendor.o(($event) => $data.newCounselor.workId = $event.detail.value),
-    H: $data.newCounselor.name,
-    I: common_vendor.o(($event) => $data.newCounselor.name = $event.detail.value),
-    J: $data.newCounselor.password,
-    K: common_vendor.o(($event) => $data.newCounselor.password = $event.detail.value),
-    L: common_vendor.t($data.newCounselor.role || "选择权限"),
-    M: $data.roleOptions,
-    N: common_vendor.o((...args) => $options.onRoleChange && $options.onRoleChange(...args)),
-    O: common_vendor.o(($event) => $data.showAddCounselor = false),
-    P: common_vendor.o((...args) => $options.addCounselor && $options.addCounselor(...args)),
-    Q: common_vendor.o(() => {
+    J: $data.newCounselor.workId,
+    K: common_vendor.o(($event) => $data.newCounselor.workId = $event.detail.value),
+    L: $data.newCounselor.name,
+    M: common_vendor.o(($event) => $data.newCounselor.name = $event.detail.value),
+    N: $data.newCounselor.password,
+    O: common_vendor.o(($event) => $data.newCounselor.password = $event.detail.value),
+    P: common_vendor.t($data.newCounselor.role || "选择权限"),
+    Q: $data.roleOptions,
+    R: common_vendor.o((...args) => $options.onRoleChange && $options.onRoleChange(...args)),
+    S: common_vendor.o(($event) => $data.showAddCounselor = false),
+    T: common_vendor.o((...args) => $options.addCounselor && $options.addCounselor(...args)),
+    U: common_vendor.o(() => {
     }),
-    R: common_vendor.o(($event) => $data.showAddCounselor = false)
+    V: common_vendor.o(($event) => $data.showAddCounselor = false)
   } : {}, {
-    S: $data.showImportResult
+    W: $data.showImportResult
   }, $data.showImportResult ? common_vendor.e({
-    T: common_vendor.t($data.importResult.success),
-    U: $data.importResult.fail > 0
+    X: common_vendor.t($data.importResult.success),
+    Y: $data.importResult.fail > 0
   }, $data.importResult.fail > 0 ? {
-    V: common_vendor.t($data.importResult.fail)
+    Z: common_vendor.t($data.importResult.fail)
   } : {}, {
-    W: $data.importResult.errors.length > 0
+    aa: $data.importResult.errors.length > 0
   }, $data.importResult.errors.length > 0 ? {
-    X: common_vendor.f($data.importResult.errors, (err, i, i0) => {
+    ab: common_vendor.f($data.importResult.errors, (err, i, i0) => {
       return {
         a: common_vendor.t(err),
         b: i
       };
     })
   } : {}, {
-    Y: common_vendor.o(($event) => $data.showImportResult = false),
-    Z: common_vendor.o(() => {
+    ac: common_vendor.o(($event) => $data.showImportResult = false),
+    ad: common_vendor.o(() => {
     }),
-    aa: common_vendor.o(($event) => $data.showImportResult = false)
+    ae: common_vendor.o(($event) => $data.showImportResult = false)
   }) : {}, {
-    ab: $data.uploading
+    af: $data.uploading
   }, $data.uploading ? {
-    ac: $data.uploadProgress + "%",
-    ad: common_vendor.t($data.uploadProgress)
+    ag: $data.uploadProgress + "%",
+    ah: common_vendor.t($data.uploadProgress)
   } : {});
 }
 const MiniProgramPage = /* @__PURE__ */ common_vendor._export_sfc(_sfc_main, [["render", _sfc_render], ["__scopeId", "data-v-fda82e13"]]);

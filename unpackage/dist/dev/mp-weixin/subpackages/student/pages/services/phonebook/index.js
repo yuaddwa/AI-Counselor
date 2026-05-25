@@ -1,38 +1,20 @@
 "use strict";
 const common_vendor = require("../../../../../common/vendor.js");
+const common_utils_request = require("../../../../../common/utils/request.js");
 const _sfc_main = {
   data() {
     return {
       keyword: "",
-      groups: [
-        {
-          category: "职能部门",
-          items: [
-            { name: "教务处", phone: "010-88880001" },
-            { name: "学生处", phone: "010-88880002" },
-            { name: "财务处", phone: "010-88880003" },
-            { name: "后勤管理处", phone: "010-88880004" },
-            { name: "图书馆", phone: "010-88880005" }
-          ]
-        },
-        {
-          category: "辅导员",
-          items: [
-            { name: "张老师（计算机系）", phone: "010-88881001" },
-            { name: "李老师（经管系）", phone: "010-88881002" },
-            { name: "王老师（外语系）", phone: "010-88881003" }
-          ]
-        },
-        {
-          category: "宿管",
-          items: [
-            { name: "1号楼值班室", phone: "010-88882001" },
-            { name: "2号楼值班室", phone: "010-88882002" },
-            { name: "3号楼值班室", phone: "010-88882003" }
-          ]
-        }
-      ]
+      groups: []
     };
+  },
+  created() {
+    common_utils_request.api.getPhonebook().then((res) => {
+      if (res && res.groups && res.groups.length) {
+        this.groups = res.groups;
+      }
+    }).catch(() => {
+    });
   },
   computed: {
     filteredGroups() {

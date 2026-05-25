@@ -125,6 +125,7 @@
 <script>
 import CustomTabbar from '@/common/components/custom-tabbar.vue'
 import EmptyState from '@/common/components/empty-state.vue'
+import { api } from '@/common/utils/request.js'
 
 export default {
 	components: { CustomTabbar, EmptyState },
@@ -140,27 +141,15 @@ export default {
 			selectedCat: '',
 			uploading: false,
 			uploadProgress: 0,
-			categories: [
-				{ id: '1', name: '新生报到', count: 12 },
-				{ id: '2', name: '教务管理', count: 25 },
-				{ id: '3', name: '后勤服务', count: 18 },
-				{ id: '4', name: '奖助政策', count: 15 },
-				{ id: '5', name: '军训指南', count: 8 }
-			],
-			items: [
-				{ id: '1', title: '2026年新生报到全流程指南', categoryId: '1', categoryName: '新生报到', updateTime: '05-20' },
-				{ id: '2', title: '选课系统操作说明', categoryId: '2', categoryName: '教务管理', updateTime: '05-19' },
-				{ id: '3', title: '宿舍报修流程及注意事项', categoryId: '3', categoryName: '后勤服务', updateTime: '05-18' },
-				{ id: '4', title: '国家奖学金评选条件及流程', categoryId: '4', categoryName: '奖助政策', updateTime: '05-17' },
-				{ id: '5', title: '军训期间注意事项', categoryId: '5', categoryName: '军训指南', updateTime: '05-16' }
-			],
+			categories: [],
+			items: [],
 			counselorTabs: [
-				{ text: '工作台', icon: '', url: '/subpackages/counselor/pages/workspace/index' },
-				{ text: '知识库', icon: '', url: '/subpackages/counselor/pages/knowledge/index' },
-				{ text: '工单', icon: '', url: '/subpackages/counselor/pages/orders/index' },
-				{ text: '数据', icon: '', url: '/subpackages/counselor/pages/data/index' },
-				{ text: '我的', icon: '', url: '/subpackages/profile/pages/counselor/index' }
-			]
+					{ text: '工作台', icon: 'icon-gongzuotai', url: '/subpackages/counselor/pages/workspace/index' },
+					{ text: '知识库', icon: 'icon-zhishi', url: '/subpackages/counselor/pages/knowledge/index' },
+					{ text: '工单', icon: 'icon-gongdan', url: '/subpackages/counselor/pages/orders/index' },
+					{ text: '数据', icon: 'icon-shuju', url: '/subpackages/counselor/pages/data/index' },
+					{ text: '我的', icon: 'icon-wode', url: '/subpackages/profile/pages/counselor/index' }
+				]
 		}
 	},
 	computed: {
@@ -178,30 +167,47 @@ export default {
 	created() {
 		const windowInfo = uni.getWindowInfo()
 		this.statusBarHeight = windowInfo.statusBarHeight || 0
+		this.loadData()
 	},
 	methods: {
-		onSearch() {},
-		selectCategory(cat) {
-			this.selectedCat = this.selectedCat === cat.id ? '' : cat.id
-		},
-		addCategory() {
-			this.showAddCat = true
-			this.newCatName = ''
-		},
-		confirmAddCat() {
-			if (!this.newCatName.trim()) {
-				uni.showToast({ title: '请输入分类名称', icon: 'none' })
-				return
-			}
-			this.categories.push({
-				id: Date.now().toString(),
-				name: this.newCatName.trim(),
-				count: 0
-			})
-			this.showAddCat = false
-			this.newCatName = ''
-			uni.showToast({ title: '添加成功', icon: 'success' })
-		},
+			async loadData() {
+				try {
+					const params = {}
+					if (this.keyword) params.keyword = this.keyword
+					if (this.selectedCat) params.categoryId = this.selectedCat
+					const res = await api.getKnowledgeList(params)
+					console.log("knowledgeList:", JSON.stringify(res))
+					if (res) {
+							const list = res.items || []
+						this.items = list.map(item => ({
+							id: item.id,
+							title: item.title,
+							categoryId: item.categoryId,
+							categoryName: item.categoryName || '',
+							updateTime: item.updateTime ? item.updateTime.substring(5, 10) : ''
+						}))
+						this.categories = (res.categories || []).map(c => ({ id: c.id, name: c.name, count: c.count || 0 }))
+					}
+				} catch (e) {
+					console.error('加载知识库失败', e)
+				}
+			},
+			selectCategory(cat) {
+				this.selectedCat = this.selectedCat === cat.id ? '' : cat.id
+			},
+			onSearch() {
+				this.loadData()
+			},
+			addCategory() {
+				this.categories.push({
+					id: Date.now().toString(),
+					name: this.newCatName.trim(),
+					count: 0
+				})
+				this.showAddCat = false
+				this.newCatName = ''
+				uni.showToast({ title: '添加成功', icon: 'success' })
+			},
 		goEdit(item) {
 			const url = item
 				? `/subpackages/counselor/pages/knowledge/edit/index?id=${item.id}`
@@ -212,10 +218,15 @@ export default {
 			uni.showModal({
 				title: '确认删除',
 				content: `确定删除"${item.title}"？`,
-				success: (res) => {
+				success: async (res) => {
 					if (res.confirm) {
-						this.items.splice(index, 1)
-						uni.showToast({ title: '已删除', icon: 'success' })
+					try {
+							await api.deleteKnowledge(item.id)
+							this.items.splice(index, 1)
+							uni.showToast({ title: '已删除', icon: 'success' })
+					} catch (e) {
+							uni.showToast({ title: '删除失败', icon: 'none' })
+						}
 					}
 				}
 			})
@@ -224,27 +235,41 @@ export default {
 			uni.chooseMessageFile({
 				count: 1,
 				type: 'file',
-				extension: ['pdf', 'doc', 'docx', 'txt'],
-				success: (res) => {
+				extension: ['xlsx', 'pdf', 'doc', 'docx', 'txt'],
+				success: async (res) => {
 					this.uploading = true
 					this.uploadProgress = 0
-					const timer = setInterval(() => {
-						this.uploadProgress += 10
-						if (this.uploadProgress >= 100) {
-							clearInterval(timer)
-							this.uploading = false
+					try {
+						const result = await api.uploadKnowledgeFile(res.tempFiles[0].path)
+						this.uploading = false
+						if (result) {
 							uni.showToast({ title: '导入成功', icon: 'success' })
+							this.loadData()
+						} else {
+							uni.showToast({ title: result.msg || '导入失败', icon: 'none' })
 						}
-					}, 200)
+					} catch (e) {
+						this.uploading = false
+						uni.showToast({ title: '导入失败', icon: 'none' })
+					}
 				}
 			})
 		},
-		testQuery() {
+		async testQuery() {
 			if (!this.testQuestion.trim()) {
 				uni.showToast({ title: '请输入测试问题', icon: 'none' })
 				return
 			}
-			this.testResult = `关于"${this.testQuestion}"，根据知识库内容，系统会从相关文档中检索并生成回答。实际回答效果取决于知识库的完善程度。`
+			try {
+				const res = await api.testKnowledge({ question: this.testQuestion })
+				if (res) {
+					this.testResult = res.answer || '未找到匹配答案'
+				} else {
+					this.testResult = '测试失败：' + (res.msg || '未知错误')
+				}
+			} catch (e) {
+				this.testResult = '网络异常，请重试'
+			}
 		},
 		onTabChange({ item }) {
 			uni.reLaunch({ url: item.url })
@@ -376,7 +401,7 @@ export default {
 	background: #FFF;
 	border-radius: 16rpx;
 	padding: 24rpx;
-	box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.03);
+	box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.03);
 }
 
 .section-header {

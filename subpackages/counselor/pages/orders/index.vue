@@ -74,6 +74,7 @@
 import CustomTabbar from '@/common/components/custom-tabbar.vue'
 import WorkOrderCard from '@/common/components/work-order-card.vue'
 import EmptyState from '@/common/components/empty-state.vue'
+import { api } from '@/common/utils/request.js'
 
 export default {
 	components: { CustomTabbar, WorkOrderCard, EmptyState },
@@ -93,25 +94,18 @@ export default {
 				{ label: '处理中', value: 'processing' },
 				{ label: '已完结', value: 'completed' }
 			],
-			orders: [
-				{ id: 1, studentId: '2026001', studentName: '张同学', className: '计算机2601', question: '关于休学申请的流程咨询', status: 'pending', createTime: '05-20 14:30', type: '政策咨询' },
-				{ id: 2, studentId: '2026002', studentName: '李同学', className: '计算机2602', question: '宿舍空调漏水需要报修', status: 'pending', createTime: '05-20 13:15', type: '后勤报修' },
-				{ id: 3, studentId: '2026003', studentName: '王同学', className: '经管2601', question: '近期情绪低落，想找人聊聊', status: 'processing', createTime: '05-20 10:00', type: '心理问题' },
-				{ id: 4, studentId: '2026004', studentName: '赵同学', className: '外语2601', question: '助学金申请需要哪些材料', status: 'completed', createTime: '05-19 16:00', type: '政策咨询' }
-			],
-			archivedOrders: [
-				{ id: 100, studentId: '2025001', studentName: '陈同学', className: '计算机2501', question: '考试成绩复核申请', status: 'completed', createTime: '04-20 10:00', type: '教务问题' }
-			],
-			classOptions: ['全部班级', '计算机2601', '计算机2602', '经管2601', '外语2601'],
+			orders: [],
+			archivedOrders: [],
+			classOptions: ['全部班级'],
 			classIndex: 0,
-				typeOptions: ["全部类型", "政策咨询", "后勤报修", "心理问题", "教务问题"],
-				typeIndex: 0,
+			typeOptions: ['全部类型'],
+			typeIndex: 0,
 			counselorTabs: [
-					{ text: '工作台', icon: '', url: '/subpackages/counselor/pages/workspace/index' },
-					{ text: '知识库', icon: '', url: '/subpackages/counselor/pages/knowledge/index' },
-					{ text: '工单', icon: '', url: '/subpackages/counselor/pages/orders/index' },
-					{ text: '数据', icon: '', url: '/subpackages/counselor/pages/data/index' },
-					{ text: '我的', icon: '', url: '/subpackages/profile/pages/counselor/index' }
+					{ text: '工作台', icon: 'icon-gongzuotai', url: '/subpackages/counselor/pages/workspace/index' },
+					{ text: '知识库', icon: 'icon-zhishi', url: '/subpackages/counselor/pages/knowledge/index' },
+					{ text: '工单', icon: 'icon-gongdan', url: '/subpackages/counselor/pages/orders/index' },
+					{ text: '数据', icon: 'icon-shuju', url: '/subpackages/counselor/pages/data/index' },
+					{ text: '我的', icon: 'icon-wode', url: '/subpackages/profile/pages/counselor/index' }
 				]
 		}
 	},
@@ -136,25 +130,57 @@ export default {
 	created() {
 		const sysInfo = uni.getSystemInfoSync()
 		this.statusBarHeight = sysInfo.statusBarHeight || 0
+		this.loadOrders()
 	},
 	methods: {
+		async loadOrders() {
+			const params = { page: 1, pageSize: 50 }
+			if (this.activeStatus !== 'all') params.status = this.activeStatus
+			if (this.selectedClass) params.className = this.selectedClass
+			if (this.selectedType) params.type = this.selectedType
+			if (this.searchKeyword) params.keyword = this.searchKeyword
+			try {
+				const res = await api.getOrders(params)
+				if (res) {
+					this.orders = (res.orders || []).map(item => ({
+						id: item.id,
+						studentId: item.studentId,
+						studentName: item.studentName,
+						className: item.className,
+						question: item.question || item.title || item.content,
+						status: item.status,
+						createTime: item.createTime ? item.createTime.substring(5, 16).replace('T', ' ') : '',
+						type: item.type || ''
+					}))
+				}
+			} catch (e) {
+				console.error('加载工单失败', e)
+			}
+		},
 		goDetail(order) {
 			uni.navigateTo({ url: `/subpackages/counselor/pages/orders/detail/index?id=${order.id}` })
 		},
 		onTypeChange(e) {
 			const idx = e.detail.value
 			this.selectedType = idx === 0 ? "" : this.typeOptions[idx]
+			this.loadOrders()
 		},
-			onClassChange(e) {
+		onClassChange(e) {
 			const idx = e.detail.value
 			this.selectedClass = idx === 0 ? '' : this.classOptions[idx]
 			this.showClassFilter = false
+			this.loadOrders()
 		},
 		toggleArchive() {
 			this.showArchive = !this.showArchive
 		},
 		onTabChange({ item }) {
 			uni.reLaunch({ url: item.url })
+		}
+	},
+	watch: {
+		activeStatus() {
+			this.loadOrders()
 		}
 	}
 }

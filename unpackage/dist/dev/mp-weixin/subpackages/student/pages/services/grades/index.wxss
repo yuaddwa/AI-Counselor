@@ -1,0 +1,171 @@
+/* 自定义全局样式变量 */
+/* uni-app 内置变量覆盖 */
+.page.data-v-c7c4b226 {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #F5F6FA;
+}
+.page-header.data-v-c7c4b226 {
+  background: linear-gradient(135deg, #F3E8FD 0%, #F8F0FF 50%, #F3E8FD 100%);
+  flex-shrink: 0;
+}
+.header-status.data-v-c7c4b226 {
+  background: #F3E8FD;
+}
+.header-bar.data-v-c7c4b226 {
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32rpx;
+}
+.header-back.data-v-c7c4b226 {
+  width: 60rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s ease;
+}
+.header-back.data-v-c7c4b226:active {
+  transform: translateX(-6rpx) scale(1.1);
+}
+.back-arrow.data-v-c7c4b226 {
+  width: 20rpx;
+  height: 20rpx;
+  border-left: 3rpx solid #9B59B6;
+  border-bottom: 3rpx solid #9B59B6;
+  transform: rotate(45deg);
+}
+.header-title.data-v-c7c4b226 {
+  font-size: 38rpx;
+  color: #9B59B6;
+  font-weight: 600;
+}
+.header-placeholder.data-v-c7c4b226 {
+  width: 60rpx;
+}
+.scroll-content.data-v-c7c4b226 {
+  flex: 1;
+  height: 0;
+  padding-bottom: 40rpx;
+}
+.semester-bar.data-v-c7c4b226 {
+  margin: 24rpx 24rpx 0;
+}
+.semester-picker.data-v-c7c4b226 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #FFF;
+  border-radius: 12rpx;
+  padding: 20rpx 24rpx;
+  font-size: 28rpx;
+  color: #333;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.03);
+}
+.picker-arrow.data-v-c7c4b226 {
+  width: 14rpx;
+  height: 14rpx;
+  border-right: 2rpx solid #999;
+  border-bottom: 2rpx solid #999;
+  transform: rotate(45deg);
+}
+.stats-card.data-v-c7c4b226 {
+  display: flex;
+  margin: 24rpx;
+  background: linear-gradient(135deg, #9B59B6, #B07CC6);
+  border-radius: 16rpx;
+  padding: 28rpx 0;
+}
+.stat-item.data-v-c7c4b226 {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.stat-item.data-v-c7c4b226:not(:last-child) {
+  border-right: 1rpx solid rgba(255, 255, 255, 0.2);
+}
+.stat-num.data-v-c7c4b226 {
+  font-size: 40rpx;
+  color: #FFF;
+  font-weight: 700;
+  margin-bottom: 8rpx;
+}
+.stat-label.data-v-c7c4b226 {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.8);
+}
+.grade-list.data-v-c7c4b226 {
+  margin: 0 24rpx;
+}
+.grade-item.data-v-c7c4b226 {
+  background: #FFF;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.03);
+}
+.grade-header.data-v-c7c4b226 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12rpx;
+}
+.grade-name.data-v-c7c4b226 {
+  font-size: 30rpx;
+  color: #333;
+  font-weight: 500;
+  flex: 1;
+}
+.grade-score.data-v-c7c4b226 {
+  font-size: 36rpx;
+  font-weight: 700;
+}
+.grade-score.excellent.data-v-c7c4b226 {
+  color: #4CD964;
+}
+.grade-score.good.data-v-c7c4b226 {
+  color: #4A90D9;
+}
+.grade-score.pass.data-v-c7c4b226 {
+  color: #F0AD4E;
+}
+.grade-score.fail.data-v-c7c4b226 {
+  color: #DD524D;
+}
+.grade-meta.data-v-c7c4b226 {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 12rpx;
+}
+.grade-credit.data-v-c7c4b226, .grade-type.data-v-c7c4b226, .grade-gpa.data-v-c7c4b226 {
+  font-size: 22rpx;
+  color: #999;
+  background: #F5F6FA;
+  padding: 2rpx 12rpx;
+  border-radius: 6rpx;
+}
+.grade-bar.data-v-c7c4b226 {
+  height: 6rpx;
+  background: #F0F0F0;
+  border-radius: 3rpx;
+  overflow: hidden;
+}
+.grade-bar-fill.data-v-c7c4b226 {
+  height: 100%;
+  border-radius: 3rpx;
+  transition: width 0.6s ease;
+}
+.empty-hint.data-v-c7c4b226 {
+  text-align: center;
+  padding: 80rpx 0;
+}
+.empty-hint text.data-v-c7c4b226 {
+  font-size: 26rpx;
+  color: #CCC;
+}
+.bottom-space.data-v-c7c4b226 {
+  height: 40rpx;
+}

@@ -109,6 +109,9 @@
 </template>
 
 <script>
+import { api } from '@/common/utils/request.js'
+import store from '@/common/store/index.js'
+
 export default {
 	data() {
 		return {
@@ -135,15 +138,24 @@ export default {
 			this.role = r
 			this.formKey++
 		},
-			handleLogin() {
+		handleLogin() {
 			if (!this.username || !this.password) {
 				this.showError('请输入账号和密码')
 				return
 			}
 			this.loading = true
-			setTimeout(() => {
+			api.login({
+				username: this.username,
+				password: this.password,
+				role: this.role
+			}).then(data => {
+				store.mutations.setToken(data.token)
+				store.mutations.setUserInfo(data.userInfo)
+				store.mutations.setUserType(this.role)
+				uni.setStorageSync('userInfo', data.userInfo)
+				uni.setStorageSync('userType', this.role)
 				this.loading = false
-				this.successName = this.role === 'student' ? '同学' : '老师'
+				this.successName = data.userInfo.name || (this.role === 'student' ? '同学' : '老师')
 				this.showSuccess = true
 				setTimeout(() => {
 					const url = this.role === 'student'
@@ -151,7 +163,10 @@ export default {
 						: '/subpackages/counselor/pages/workspace/index'
 					uni.reLaunch({ url })
 				}, 1200)
-			}, 1500)
+			}).catch(err => {
+				this.loading = false
+				this.showError(err.msg || '登录失败，请重试')
+			})
 		},
 		forgotPw() {
 			uni.showToast({ title: '请联系管理员重置密码', icon: 'none' })

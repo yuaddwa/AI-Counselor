@@ -1,5 +1,6 @@
 "use strict";
 const common_vendor = require("../../../../common/vendor.js");
+const common_utils_request = require("../../../../common/utils/request.js");
 const _sfc_main = {
   data() {
     return {
@@ -20,17 +21,26 @@ const _sfc_main = {
       voicePath: "",
       leaveState: "idle",
       leaveForm: { type: "", reason: "", startTime: "", endTime: "" },
-      quickTags: ["新生报到", "宿舍后勤", "缴费", "奖助", "请假", "军训"],
-      announcements: [
-        { id: 1, title: "2026年秋季学期开学报到须知", time: "05-20", read: false },
-        { id: 2, title: "关于国庆节放假安排的通知", time: "05-18", read: false },
-        { id: 3, title: "图书馆暑期开放时间调整", time: "05-15", read: true }
-      ]
+      sessionId: null,
+      quickTags: ["新生报到", "宿舍后勤", "奖助", "请假", "军训"],
+      announcements: []
     };
   },
   computed: {
     unreadCount() {
       return this.announcements.filter((a) => !a.read).length;
+    },
+    lastMessages() {
+      const msgs = this.messages;
+      if (msgs.length === 0)
+        return [];
+      const last = msgs[msgs.length - 1];
+      if (last.role === "user" || msgs.length === 1)
+        return [last];
+      const prev = msgs[msgs.length - 2];
+      if (prev && prev.role === "user")
+        return [prev, last];
+      return [last];
     },
     leavePlaceholder() {
       if (this.leaveState === "askReason")
@@ -56,16 +66,30 @@ const _sfc_main = {
         this.recorderManager.onStop((res) => {
           if (!this.willCancel && res.tempFilePath) {
             this.voicePath = res.tempFilePath;
-            this.inputText = "[语音消息] 请后端接入语音识别后自动转换文字";
+            this.recognizeSpeech(res.tempFilePath);
           }
         });
         this.recorderManager.onError((err) => {
-          common_vendor.index.__f__("error", "at subpackages/student/pages/home/index.vue:199", "录音失败", err);
+          common_vendor.index.__f__("error", "at subpackages/student/pages/home/index.vue:218", "录音失败", err);
           common_vendor.index.showToast({ title: "录音失败，请重试", icon: "none" });
         });
       }
     } catch (e) {
     }
+  },
+  onShow() {
+    setTimeout(() => {
+      this.loadData();
+    }, 100);
+  },
+  onLoad(options) {
+    if (options.sessionId) {
+      this.sessionId = options.sessionId;
+      this.loadSessionDetail(options.sessionId);
+    }
+  },
+  beforeDestroy() {
+    this.destroyDigitalHuman();
   },
   methods: {
     scrollToBottom() {
@@ -90,41 +114,10 @@ const _sfc_main = {
       }
       this.activeTag = tag;
       this.inputText = tag;
-      this.messages.push({
-        role: "user",
-        content: tag,
-        time: Date.now()
-      });
-      const aiMsg = {
-        role: "ai",
-        content: "",
-        source: "新生入学指南",
-        loading: true,
-        liked: false,
-        disliked: false,
-        time: Date.now()
-      };
-      this.messages.push(aiMsg);
-      this.inputText = "";
-      this.scrollToBottom();
-      setTimeout(() => {
-        this.activeTag = "";
-        const reply = '关于"' + tag + '"的问题，根据学校相关规定：\n\n1. 请携带相关证件到对应部门办理\n2. 办公时间：周一至周五 8:30-17:00\n3. 如需进一步帮助，可联系辅导员\n\n更多详情请查看办事指南或联系人工客服。';
-        let index = 0;
-        const timer = setInterval(() => {
-          if (index < reply.length) {
-            aiMsg.content += reply[index];
-            index++;
-            this.scrollToBottom();
-          } else {
-            clearInterval(timer);
-            aiMsg.loading = false;
-            this.showTransfer = true;
-          }
-        }, 30);
-      }, 500);
+      this.sendMessage();
+      this.activeTag = "";
     },
-    sendMessage() {
+    async sendMessage() {
       const text = this.inputText.trim();
       if (!text)
         return;
@@ -149,41 +142,53 @@ const _sfc_main = {
         time: Date.now()
       });
       this.inputText = "";
-      this.scrollToBottom();
       const aiMsg = {
         role: "ai",
         content: "",
-        source: "新生入学指南",
+        source: "",
         loading: true,
         liked: false,
         disliked: false,
         time: Date.now()
       };
       this.messages.push(aiMsg);
-      this.scrollToBottom();
-      const reply = '关于"' + text + '"的问题，根据学校相关规定：\n\n1. 请携带相关证件到对应部门办理\n2. 办公时间：周一至周五 8:30-17:00\n3. 如需进一步帮助，可联系辅导员\n\n更多详情请查看办事指南或联系人工客服。';
-      let index = 0;
-      const timer = setInterval(() => {
-        if (index < reply.length) {
-          aiMsg.content += reply[index];
-          index++;
-          this.scrollToBottom();
+      try {
+        const res = await common_utils_request.api.sendMessage({ message: text, sessionId: this.sessionId });
+        if (res) {
+          this.sessionId = res.sessionId || this.sessionId;
+          aiMsg.content = res.reply || "抱歉，暂时无法回答您的问题。";
+          this.dhSpeak(aiMsg.content);
         } else {
-          clearInterval(timer);
-          aiMsg.loading = false;
-          this.showTransfer = true;
+          aiMsg.content = "抱歉，服务暂时不可用，请稍后再试。";
         }
-      }, 30);
+      } catch (e) {
+        common_vendor.index.__f__("error", "at subpackages/student/pages/home/index.vue:305", "发送消息失败", e);
+        aiMsg.content = "网络异常，请检查网络后重试。";
+      }
+      aiMsg.loading = false;
+      this.showTransfer = true;
     },
-    likeMsg(msg) {
+    async likeMsg(msg) {
       msg.liked = !msg.liked;
-      if (msg.liked)
+      if (msg.liked) {
         msg.disliked = false;
+        try {
+          const msgIndex = this.messages.indexOf(msg);
+          await common_utils_request.api.submitFeedback({ sessionId: this.sessionId, messageIndex: msgIndex, type: "like" });
+        } catch (e) {
+        }
+      }
     },
-    dislikeMsg(msg) {
+    async dislikeMsg(msg) {
       msg.disliked = !msg.disliked;
-      if (msg.disliked)
+      if (msg.disliked) {
         msg.liked = false;
+        try {
+          const msgIndex = this.messages.indexOf(msg);
+          await common_utils_request.api.submitFeedback({ sessionId: this.sessionId, messageIndex: msgIndex, type: "dislike" });
+        } catch (e) {
+        }
+      }
     },
     toggleVoiceMode() {
       if (!this.voiceMode) {
@@ -254,6 +259,58 @@ const _sfc_main = {
         this.willCancel = false;
       }
     },
+    recognizeSpeech(tempFilePath) {
+      this.inputText = "";
+      this.recognizedText = "正在识别...";
+      common_vendor.index.getFileSystemManager().readFile({
+        filePath: tempFilePath,
+        encoding: "base64",
+        success: (res) => {
+          try {
+            const plugin = requirePlugin("WechatSI");
+            if (plugin && plugin.translate) {
+              plugin.translate({
+                from: "zh_CN",
+                to: "zh_CN",
+                audio: { data: res.data, sampleRate: 16e3 },
+                success: (r) => {
+                  if (r.result) {
+                    this.recognizedText = r.result;
+                    this.inputText = r.result;
+                  }
+                },
+                fail: (err) => {
+                  common_vendor.index.__f__("error", "at subpackages/student/pages/home/index.vue:418", "微信语音识别失败", err);
+                  this.fallbackSpeechToText(tempFilePath);
+                }
+              });
+              return;
+            }
+          } catch (e) {
+            common_vendor.index.__f__("log", "at subpackages/student/pages/home/index.vue:425", "WechatSI插件不可用，使用后端识别");
+          }
+          this.fallbackSpeechToText(tempFilePath);
+        },
+        fail: () => {
+          this.fallbackSpeechToText(tempFilePath);
+        }
+      });
+    },
+    async fallbackSpeechToText(tempFilePath) {
+      try {
+        const res = await common_utils_request.api.speechToText(tempFilePath);
+        if (res && res.text) {
+          this.recognizedText = res.text;
+          this.inputText = res.text;
+        } else {
+          this.recognizedText = "";
+          common_vendor.index.showToast({ title: "识别失败，请手动输入", icon: "none" });
+        }
+      } catch (e) {
+        this.recognizedText = "";
+        common_vendor.index.showToast({ title: "识别失败，请手动输入", icon: "none" });
+      }
+    },
     transferToHuman() {
       common_vendor.index.showModal({
         title: "转人工服务",
@@ -292,7 +349,6 @@ const _sfc_main = {
           ]
         }
       });
-      this.scrollToBottom();
     },
     onExtraBtn(msg, btn) {
       if (this.leaveState === "askType") {
@@ -322,7 +378,6 @@ const _sfc_main = {
         time: Date.now()
       });
       this.inputText = "";
-      this.scrollToBottom();
     },
     onLeaveReason(reason) {
       this.leaveForm.reason = reason;
@@ -343,7 +398,6 @@ const _sfc_main = {
         }
       });
       this.inputText = "";
-      this.scrollToBottom();
     },
     onLeaveDate(e, field) {
       const date = e.detail.value;
@@ -385,7 +439,6 @@ const _sfc_main = {
           }
         });
       }
-      this.scrollToBottom();
     },
     onDateColumnChange(e, msg) {
     },
@@ -394,37 +447,51 @@ const _sfc_main = {
         this.onLeaveDate(e, msg.extra.dateField);
       }
     },
-    onLeaveConfirm() {
+    async onLeaveConfirm() {
       this.messages.forEach((m) => {
         if (m.extra && m.extra.buttons && !m.answered)
           m.answered = true;
       });
       this.messages.push({ role: "user", content: "确认提交", time: Date.now() });
       try {
-        const store = require("@/common/store/index.js").default;
-        const userInfo = store.state.userInfo || {};
-        store.mutations.addLeaveRequest({
-          studentName: userInfo.name || "同学",
-          studentId: userInfo.id || "2026001",
-          className: userInfo.className || "",
+        const res = await common_utils_request.api.submitLeave({
           leaveType: this.leaveForm.type,
           reason: this.leaveForm.reason,
           startTime: this.leaveForm.startTime,
           endTime: this.leaveForm.endTime
         });
+        if (res) {
+          this.messages.push({
+            role: "ai",
+            content: "请假申请已提交，请等待辅导员审批。",
+            loading: false,
+            liked: false,
+            disliked: false,
+            time: Date.now()
+          });
+        } else {
+          this.messages.push({
+            role: "ai",
+            content: "请假申请提交失败：" + (res.msg || "未知错误"),
+            loading: false,
+            liked: false,
+            disliked: false,
+            time: Date.now()
+          });
+        }
       } catch (e) {
+        common_vendor.index.__f__("error", "at subpackages/student/pages/home/index.vue:616", "提交请假失败", e);
+        this.messages.push({
+          role: "ai",
+          content: "网络异常，请假申请提交失败，请重试。",
+          loading: false,
+          liked: false,
+          disliked: false,
+          time: Date.now()
+        });
       }
-      this.messages.push({
-        role: "ai",
-        content: "请假申请已提交，请等待辅导员审批。",
-        loading: false,
-        liked: false,
-        disliked: false,
-        time: Date.now()
-      });
       this.leaveState = "idle";
       this.showTransfer = true;
-      this.scrollToBottom();
     },
     onLeaveCancel() {
       this.messages.forEach((m) => {
@@ -441,12 +508,79 @@ const _sfc_main = {
         time: Date.now()
       });
       this.leaveState = "idle";
-      this.scrollToBottom();
     },
     formatDateDisplay(d) {
       if (!d)
         return "";
       return d.replace(/\//g, "-");
+    },
+    initDigitalHuman() {
+    },
+    destroyDigitalHuman() {
+    },
+    async dhSpeak(text) {
+      if (!text)
+        return;
+      try {
+        await common_utils_request.api.digitalHumanSpeak({ sessionId: "0", text, interrupt: true });
+      } catch (e) {
+        common_vendor.index.__f__("error", "at subpackages/student/pages/home/index.vue:655", "数字人播报失败", e);
+      }
+    },
+    async dhInterrupt() {
+      try {
+        await common_utils_request.api.digitalHumanInterrupt({ sessionId: "0" });
+      } catch (e) {
+      }
+    },
+    async loadData() {
+      try {
+        const res = await common_utils_request.api.getStudentHome();
+        if (res) {
+          if (res.quickTags && res.quickTags.length > 0) {
+            this.quickTags = res.quickTags;
+          }
+          if (res.recentSessionId) {
+            this.sessionId = res.recentSessionId;
+          }
+        }
+      } catch (e) {
+        common_vendor.index.__f__("error", "at subpackages/student/pages/home/index.vue:675", "加载首页数据失败", e);
+      }
+      try {
+        const res = await common_utils_request.api.getNotices({ page: 1, pageSize: 20 });
+        if (res) {
+          this.announcements = (res.notices || res.list || []).map((item) => ({
+            id: item.id,
+            title: item.title,
+            time: item.createTime ? item.createTime.substring(5, 10) : "",
+            read: item.read
+          }));
+        }
+      } catch (e) {
+        common_vendor.index.__f__("error", "at subpackages/student/pages/home/index.vue:688", "加载通知失败", e);
+      }
+    },
+    async loadSessionDetail(sessionId) {
+      try {
+        const res = await common_utils_request.api.getChatDetail(sessionId);
+        if (res) {
+          this.sessionId = res.sessionId;
+          this.messages = (res.messages || []).map((msg) => ({
+            role: msg.role === "assistant" ? "ai" : msg.role,
+            content: msg.content,
+            loading: false,
+            liked: false,
+            disliked: false,
+            time: msg.timestamp ? new Date(msg.timestamp).getTime() : Date.now()
+          }));
+          if (this.messages.length > 0) {
+            this.showTransfer = true;
+          }
+        }
+      } catch (e) {
+        common_vendor.index.__f__("error", "at subpackages/student/pages/home/index.vue:709", "加载会话详情失败", e);
+      }
     }
   }
 };
@@ -458,17 +592,10 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
     d: common_vendor.o((...args) => $options.goProfile && $options.goProfile(...args)),
     e: $data.actionsRight + "px",
     f: $data.messages.length === 0
-  }, $data.messages.length === 0 ? {
-    g: common_vendor.f($data.quickTags, (tag, i, i0) => {
-      return {
-        a: common_vendor.t(tag),
-        b: $data.activeTag === tag ? 1 : "",
-        c: i,
-        d: common_vendor.o(($event) => $options.sendQuick(tag), i)
-      };
-    })
-  } : {}, {
-    h: common_vendor.f($data.messages, (msg, i, i0) => {
+  }, $data.messages.length === 0 ? {} : {}, {
+    g: $data.messages.length > 0
+  }, $data.messages.length > 0 ? {} : {}, {
+    h: common_vendor.f($options.lastMessages, (msg, i, i0) => {
       return common_vendor.e({
         a: msg.role === "ai"
       }, msg.role === "ai" ? {} : {}, {
@@ -521,51 +648,48 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
   }, $data.showScrollBtn ? {
     n: common_vendor.o((...args) => $options.scrollToBottom && $options.scrollToBottom(...args))
   } : {}, {
-    o: $data.messages.length > 0
-  }, $data.messages.length > 0 ? {
-    p: common_vendor.f($data.quickTags, (tag, i, i0) => {
+    o: common_vendor.f($data.quickTags, (tag, i, i0) => {
       return {
         a: common_vendor.t(tag),
         b: i,
         c: common_vendor.o(($event) => $options.sendQuick(tag), i)
       };
-    })
-  } : {}, {
-    q: $data.voiceMode ? "/static/jianpan.svg" : "/static/saying.svg",
-    r: common_vendor.o((...args) => $options.toggleVoiceMode && $options.toggleVoiceMode(...args)),
-    s: !$data.voiceMode
+    }),
+    p: $data.voiceMode ? "/static/jianpan.svg" : "/static/saying.svg",
+    q: common_vendor.o((...args) => $options.toggleVoiceMode && $options.toggleVoiceMode(...args)),
+    r: !$data.voiceMode
   }, !$data.voiceMode ? {
-    t: $options.leavePlaceholder,
-    v: common_vendor.o((...args) => $options.sendMessage && $options.sendMessage(...args)),
-    w: $data.inputText,
-    x: common_vendor.o(($event) => $data.inputText = $event.detail.value)
+    s: $options.leavePlaceholder,
+    t: common_vendor.o((...args) => $options.sendMessage && $options.sendMessage(...args)),
+    v: $data.inputText,
+    w: common_vendor.o(($event) => $data.inputText = $event.detail.value)
   } : {
-    y: common_vendor.t($data.isRecording ? $data.willCancel ? "松开取消" : "松开发送" : "按住说话"),
-    z: $data.isRecording ? 1 : "",
-    A: $data.willCancel ? 1 : "",
-    B: common_vendor.o((...args) => $options.startVoice && $options.startVoice(...args)),
-    C: common_vendor.o((...args) => $options.moveVoice && $options.moveVoice(...args)),
-    D: common_vendor.o((...args) => $options.stopVoice && $options.stopVoice(...args))
+    x: common_vendor.t($data.isRecording ? $data.willCancel ? "松开取消" : "松开发送" : "按住说话"),
+    y: $data.isRecording ? 1 : "",
+    z: $data.willCancel ? 1 : "",
+    A: common_vendor.o((...args) => $options.startVoice && $options.startVoice(...args)),
+    B: common_vendor.o((...args) => $options.moveVoice && $options.moveVoice(...args)),
+    C: common_vendor.o((...args) => $options.stopVoice && $options.stopVoice(...args))
   }, {
-    E: !$data.voiceMode
+    D: !$data.voiceMode
   }, !$data.voiceMode ? {
-    F: common_vendor.o((...args) => $options.sendMessage && $options.sendMessage(...args)),
-    G: $data.inputText.trim() ? 1 : ""
+    E: common_vendor.o((...args) => $options.sendMessage && $options.sendMessage(...args)),
+    F: $data.inputText.trim() ? 1 : ""
   } : {}, {
-    H: $data.isRecording
+    G: $data.isRecording
   }, $data.isRecording ? common_vendor.e({
-    I: common_vendor.f(5, (n, k0, i0) => {
+    H: common_vendor.f(5, (n, k0, i0) => {
       return {
         a: n
       };
     }),
-    J: common_vendor.t($data.willCancel ? "松开取消" : "正在识别..."),
-    K: $data.recognizedText
+    I: common_vendor.t($data.willCancel ? "松开取消" : "正在识别..."),
+    J: $data.recognizedText
   }, $data.recognizedText ? {
-    L: common_vendor.t($data.recognizedText)
+    K: common_vendor.t($data.recognizedText)
   } : {}, {
-    M: common_vendor.t($data.willCancel ? "松开取消发送" : "上滑取消发送"),
-    N: $data.willCancel ? 1 : ""
+    L: common_vendor.t($data.willCancel ? "松开取消发送" : "上滑取消发送"),
+    M: $data.willCancel ? 1 : ""
   }) : {});
 }
 const MiniProgramPage = /* @__PURE__ */ common_vendor._export_sfc(_sfc_main, [["render", _sfc_render], ["__scopeId", "data-v-ec17f086"]]);

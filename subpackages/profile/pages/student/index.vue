@@ -51,8 +51,8 @@
 				<view class="menu-item" @click="goPage('tickets')">
 					<text class="menu-icon iconfont icon-gongdan"></text>
 					<text class="menu-text">我的工单</text>
-					<view class="menu-badge">
-						<text>3</text>
+					<view class="menu-badge" v-if="myTickets.length > 0">
+						<text>{{ myTickets.length }}</text>
 					</view>
 					<text class="menu-arrow">›</text>
 				</view>
@@ -84,11 +84,11 @@
 				<text class="modal-title">消息设置</text>
 				<view class="setting-row">
 					<text>问答提醒</text>
-					<switch :checked="settings.chatNotify" @change="settings.chatNotify = $event.detail.value" color="#4A90D9" />
+					<switch :checked="settings.chatNotify" @change="onSettingChange('chatNotify', $event.detail.value)" color="#4A90D9" />
 				</view>
 				<view class="setting-row">
 					<text>人工回复提醒</text>
-					<switch :checked="settings.humanNotify" @change="settings.humanNotify = $event.detail.value" color="#4A90D9" />
+					<switch :checked="settings.humanNotify" @change="onSettingChange('humanNotify', $event.detail.value)" color="#4A90D9" />
 				</view>
 				<view class="modal-btn" @click="showNotification = false">
 					<text>确定</text>
@@ -146,6 +146,7 @@
 import EmptyState from '@/common/components/empty-state.vue'
 import store from '@/common/store/index.js'
 import { ticketStatusMap } from '@/common/utils/helper.js'
+import { api } from '@/common/utils/request.js'
 
 export default {
 	components: { EmptyState },
@@ -162,21 +163,20 @@ export default {
 			feedbackContent: '',
 			userInfo: {},
 			stats: [
-				{ num: 3, label: '工单' },
-				{ num: 12, label: '提问' },
-				{ num: 5, label: '收藏' }
+				{ num: 0, label: '工单' },
+				{ num: 0, label: '提问' },
+				{ num: 0, label: '收藏' }
 			],
-			myTickets: [
-				{ question: '关于休学申请流程咨询', status: 'pending', statusText: '待受理', statusColor: '#F0AD4E', time: '05-20' },
-				{ question: '宿舍空调报修', status: 'processing', statusText: '处理中', statusColor: '#4A90D9', time: '05-19' },
-				{ question: '奖学金申请条件', status: 'completed', statusText: '已完结', statusColor: '#4CD964', time: '05-18' }
-			],
+			myTickets: [],
 		}
 	},
 	created() {
 		const windowInfo = uni.getWindowInfo()
 		this.statusBarHeight = windowInfo.statusBarHeight || 0
-		this.userInfo = store.state.userInfo || { name: '学生', id: '2026001', className: '计算机2601' }
+		this.userInfo = store.state.userInfo || { name: '', id: '', className: '' }
+		this.loadStats()
+		this.loadNotificationSettings()
+		this.loadTickets()
 	},
 	methods: {
 		goBack() {
@@ -185,6 +185,18 @@ export default {
 		onAvatarTap() {
 			this.avatarSpin = true
 			setTimeout(() => { this.avatarSpin = false }, 800)
+		},
+		async loadStats() {
+			try {
+				const res = await api.getUserStats()
+				if (res) {
+					this.stats = [
+						{ num: res.questionCount ?? 0, label: "工单" },
+						{ num: res.sessionCount ?? 0, label: "提问" },
+						{ num: res.favoriteCount ?? 0, label: "收藏" }
+					]
+				}
+			} catch (e) {}
 		},
 		goPage(type) {
 			switch (type) {
@@ -201,7 +213,7 @@ export default {
 					break
 			}
 		},
-		changePassword() {
+		async changePassword() {
 			if (!this.passwordForm.oldPwd || !this.passwordForm.newPwd) {
 				uni.showToast({ title: '请填写完整', icon: 'none' })
 				return
@@ -210,18 +222,53 @@ export default {
 				uni.showToast({ title: '两次密码不一致', icon: 'none' })
 				return
 			}
-			uni.showToast({ title: '修改成功', icon: 'success' })
-			this.showPassword = false
-			this.passwordForm = { oldPwd: '', newPwd: '', confirmPwd: '' }
+			try {
+				await api.updatePassword({ oldPassword: this.passwordForm.oldPwd, newPassword: this.passwordForm.newPwd, confirmPassword: this.passwordForm.confirmPwd })
+				uni.showToast({ title: '修改成功', icon: 'success' })
+				this.showPassword = false
+				this.passwordForm = { oldPwd: '', newPwd: '', confirmPwd: '' }
+			} catch (e) {
+				uni.showToast({ title: e.msg || '修改失败', icon: 'none' })
+			}
 		},
-		submitFeedback() {
+		async submitFeedback() {
 			if (!this.feedbackContent.trim()) {
 				uni.showToast({ title: '请输入反馈内容', icon: 'none' })
 				return
 			}
-			uni.showToast({ title: '提交成功', icon: 'success' })
-			this.showFeedback = false
-			this.feedbackContent = ''
+			try {
+				await api.submitUserFeedback({ content: this.feedbackContent })
+				uni.showToast({ title: '提交成功', icon: 'success' })
+				this.showFeedback = false
+				this.feedbackContent = ''
+			} catch (e) {
+				uni.showToast({ title: e.msg || '提交失败', icon: 'none' })
+			}
+		},
+		async loadNotificationSettings() {
+			try {
+				const res = await api.getNotificationSettings()
+				this.settings = { chatNotify: !!res.chatNotify, humanNotify: !!res.humanNotify }
+			} catch (e) {}
+		},
+		async loadTickets() {
+			try {
+				const res = await api.getMyTickets()
+				const list = res.tickets || res.list || []
+				this.myTickets = list.map(t => {
+					const info = ticketStatusMap[t.status] || { text: t.status, color: '#999' }
+					return { question: t.question || t.title, status: t.status, statusText: info.text, statusColor: info.color, time: t.time || t.createdAt }
+				})
+			} catch (e) {}
+		},
+		async onSettingChange(key, value) {
+			this.settings[key] = value
+			try {
+				await api.updateNotificationSettings(this.settings)
+			} catch (e) {
+				this.settings[key] = !value
+				uni.showToast({ title: '设置失败', icon: 'none' })
+			}
 		},
 		handleLogout() {
 			uni.showModal({
@@ -345,7 +392,7 @@ export default {
 	border: 4rpx solid rgba(91, 155, 213, 0.3);
 	animation: avatarGlow 2.5s ease-in-out 1s infinite, avatarIdle 3s ease-in-out 2s infinite;
 	transition: transform 0.3s ease;
-	&.spinning {
+	&.spinning {
 	}
 }
 
@@ -408,7 +455,7 @@ export default {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	position: relative;
+	position: relative;
 	opacity: 0;
 		animation: statPop 0.5s ease forwards;
 		&:nth-child(1) { animation-delay: 0.1s; }
@@ -421,7 +468,7 @@ export default {
 		top: 20%;
 		height: 60%;
 		width: 1rpx;
-		background: rgba(91, 155, 213, 0.15);
+		background: rgba(91, 155, 213, 0.15);
 		transform: scaleY(0);
 	}
 }
@@ -443,7 +490,7 @@ export default {
 	margin: 24rpx 24rpx 0;
 	background: #FFF;
 	border-radius: 16rpx;
-	overflow: hidden;
+	overflow: hidden;
 }
 
 .menu-item {

@@ -1,5 +1,6 @@
 "use strict";
 const common_vendor = require("../../../../../common/vendor.js");
+const common_utils_request = require("../../../../../common/utils/request.js");
 const _sfc_main = {
   data() {
     return {
@@ -13,10 +14,23 @@ const _sfc_main = {
         { label: "全体学生", value: "all" },
         { label: "指定班级", value: "class" }
       ],
-      classList: ["计算机2601", "计算机2602", "经管2601", "经管2602", "外语2601", "机械2601"]
+      classList: []
     };
   },
+  created() {
+    this.loadClassList();
+  },
   methods: {
+    async loadClassList() {
+      try {
+        const res = await common_utils_request.api.getClasses();
+        const classes = res.classes || [];
+        if (classes.length) {
+          this.classList = classes.map((c) => c.className);
+        }
+      } catch (e) {
+      }
+    },
     toggleClass(cls) {
       const idx = this.form.selectedClasses.indexOf(cls);
       if (idx > -1) {
@@ -47,11 +61,21 @@ const _sfc_main = {
         success: (res) => {
           if (res.confirm) {
             common_vendor.index.showLoading({ title: "发布中..." });
-            setTimeout(() => {
+            const payload = {
+              title: this.form.title,
+              content: this.form.content,
+              type: this.form.scope,
+              classes: this.form.scope === "class" ? this.form.selectedClasses : []
+            };
+            common_utils_request.api.createNotification(payload).then(() => {
               common_vendor.index.hideLoading();
               common_vendor.index.showToast({ title: "发布成功", icon: "success" });
               setTimeout(() => common_vendor.index.navigateBack(), 1500);
-            }, 1e3);
+            }).catch((e) => {
+              common_vendor.index.hideLoading();
+              common_vendor.index.__f__("error", "at subpackages/counselor/pages/notifications/create/index.vue:132", "发布通知失败", e);
+              common_vendor.index.showToast({ title: "发布失败", icon: "none" });
+            });
           }
         }
       });

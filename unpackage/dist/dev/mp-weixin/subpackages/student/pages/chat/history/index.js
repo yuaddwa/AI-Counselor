@@ -1,29 +1,53 @@
 "use strict";
 const common_vendor = require("../../../../../common/vendor.js");
+const common_utils_request = require("../../../../../common/utils/request.js");
 const EmptyState = () => "../../../../../common/components/empty-state.js";
 const _sfc_main = {
   components: { EmptyState },
   data() {
     return {
-      sessions: [
-        { id: "1", lastMessage: "如何办理缓缴学费手续？", time: "05-20 14:30", msgCount: 5 },
-        { id: "2", lastMessage: "宿舍报修流程是什么？", time: "05-19 10:15", msgCount: 3 },
-        { id: "3", lastMessage: "奖学金评选条件有哪些？", time: "05-18 16:45", msgCount: 8 }
-      ]
+      sessions: [],
+      page: 1,
+      pageSize: 20,
+      hasMore: true
     };
   },
+  created() {
+    this.loadHistory();
+  },
   methods: {
+    async loadHistory() {
+      try {
+        const res = await common_utils_request.api.getChatHistory({ page: this.page, pageSize: this.pageSize });
+        if (res) {
+          this.sessions = (res.list || []).map((item) => ({
+            id: item.sessionId,
+            lastMessage: item.title || item.lastMessage || "",
+            time: item.updateTime ? item.updateTime.substring(5, 16).replace("T", " ") : "",
+            msgCount: 0
+          }));
+          this.hasMore = this.sessions.length >= this.pageSize;
+        }
+      } catch (e) {
+        common_vendor.index.__f__("error", "at subpackages/student/pages/chat/history/index.vue:61", "加载聊天历史失败", e);
+      }
+    },
     openSession(item) {
-      common_vendor.index.navigateTo({ url: `/subpackages/student/pages/chat/index?sessionId=${item.id}` });
+      common_vendor.index.navigateTo({ url: `/subpackages/student/pages/home/index?sessionId=${item.id}` });
     },
     deleteSession(item, index) {
       common_vendor.index.showModal({
         title: "确认删除",
         content: "删除后不可恢复，确认删除该对话？",
-        success: (res) => {
+        success: async (res) => {
           if (res.confirm) {
-            this.sessions.splice(index, 1);
-            common_vendor.index.showToast({ title: "已删除", icon: "success" });
+            try {
+              await common_utils_request.api.deleteChatSession(item.id);
+              this.sessions.splice(index, 1);
+              common_vendor.index.showToast({ title: "已删除", icon: "success" });
+            } catch (e) {
+              common_vendor.index.showToast({ title: "删除失败", icon: "none" });
+            }
           }
         }
       });
@@ -34,10 +58,15 @@ const _sfc_main = {
       common_vendor.index.showModal({
         title: "确认清空",
         content: "将清空所有历史对话，确认继续？",
-        success: (res) => {
+        success: async (res) => {
           if (res.confirm) {
-            this.sessions = [];
-            common_vendor.index.showToast({ title: "已清空", icon: "success" });
+            try {
+              await common_utils_request.api.clearAllChat();
+              this.sessions = [];
+              common_vendor.index.showToast({ title: "已清空", icon: "success" });
+            } catch (e) {
+              common_vendor.index.showToast({ title: "清空失败", icon: "none" });
+            }
           }
         }
       });

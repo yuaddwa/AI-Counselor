@@ -1,23 +1,29 @@
 "use strict";
+const common_utils_request = require("../../../../../common/utils/request.js");
 const common_vendor = require("../../../../../common/vendor.js");
 const _sfc_main = {
   data() {
     return {
-      centerLat: 39.908823,
-      centerLng: 116.39747,
+      centerLat: 0,
+      centerLng: 0,
       keyword: "",
       activePoi: -1,
-      pois: [
-        { name: "图书馆", category: "教学设施", icon: "", color: "#E8F4FD", lat: 39.909223, lng: 116.39707 },
-        { name: "第一食堂", category: "餐饮", icon: "", color: "#FFF3E0", lat: 39.908523, lng: 116.39787 },
-        { name: "第二食堂", category: "餐饮", icon: "", color: "#FFF3E0", lat: 39.908023, lng: 116.39657 },
-        { name: "校医院", category: "医疗", icon: "", color: "#FFE8E8", lat: 39.909523, lng: 116.39827 },
-        { name: "体育馆", category: "运动设施", icon: "", color: "#E8F8E8", lat: 39.908723, lng: 116.39607 },
-        { name: "快递驿站", category: "服务", icon: "", color: "#F3E8FD", lat: 39.907823, lng: 116.39727 },
-        { name: "行政楼", category: "办公", icon: "", color: "#EEF4FB", lat: 39.909423, lng: 116.39657 },
-        { name: "学生宿舍1号楼", category: "宿舍", icon: "", color: "#FFF8E0", lat: 39.908123, lng: 116.39837 }
-      ]
+      pois: []
     };
+  },
+  created() {
+    common_utils_request.api.getCampusMap().then((res) => {
+      if (res) {
+        const d = res;
+        if (d.centerLat)
+          this.centerLat = d.centerLat;
+        if (d.centerLng)
+          this.centerLng = d.centerLng;
+        if (d.pois && d.pois.length)
+          this.pois = d.pois;
+      }
+    }).catch(() => {
+    });
   },
   computed: {
     markers() {
@@ -61,7 +67,7 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
     f: $data.keyword,
     g: common_vendor.f($options.filteredPois, (poi, i, i0) => {
       return {
-        a: common_vendor.t(poi.icon),
+        a: common_vendor.n(poi.icon || "icon-ditu"),
         b: poi.color,
         c: common_vendor.t(poi.name),
         d: common_vendor.t(poi.category),

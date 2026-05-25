@@ -1,5 +1,7 @@
 "use strict";
 const common_vendor = require("../../../common/vendor.js");
+const common_utils_request = require("../../../common/utils/request.js");
+const common_store_index = require("../../../common/store/index.js");
 const common_assets = require("../../../common/assets.js");
 const _sfc_main = {
   data() {
@@ -34,15 +36,27 @@ const _sfc_main = {
         return;
       }
       this.loading = true;
-      setTimeout(() => {
+      common_utils_request.api.login({
+        username: this.username,
+        password: this.password,
+        role: this.role
+      }).then((data) => {
+        common_store_index.store.mutations.setToken(data.token);
+        common_store_index.store.mutations.setUserInfo(data.userInfo);
+        common_store_index.store.mutations.setUserType(this.role);
+        common_vendor.index.setStorageSync("userInfo", data.userInfo);
+        common_vendor.index.setStorageSync("userType", this.role);
         this.loading = false;
-        this.successName = this.role === "student" ? "同学" : "老师";
+        this.successName = data.userInfo.name || (this.role === "student" ? "同学" : "老师");
         this.showSuccess = true;
         setTimeout(() => {
           const url = this.role === "student" ? "/subpackages/student/pages/home/index" : "/subpackages/counselor/pages/workspace/index";
           common_vendor.index.reLaunch({ url });
         }, 1200);
-      }, 1500);
+      }).catch((err) => {
+        this.loading = false;
+        this.showError(err.msg || "登录失败，请重试");
+      });
     },
     forgotPw() {
       common_vendor.index.showToast({ title: "请联系管理员重置密码", icon: "none" });

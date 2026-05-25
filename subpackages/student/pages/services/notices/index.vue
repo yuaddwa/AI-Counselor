@@ -47,57 +47,60 @@
 </template>
 
 <script>
+import { api } from '@/common/utils/request.js'
+
 export default {
 	data() {
 		return {
 			statusBarHeight: 0,
 			selectedNotice: null,
-			notices: [
-				{
-					id: 1,
-					title: '2026年秋季学期开学报到须知',
-					time: '2026-05-20',
-					read: false,
-					content: '各位同学：\n\n2026年秋季学期开学报到安排如下：\n\n一、报到时间：9月1日-9月2日\n\n二、报到地点：各学院迎新点\n\n三、所需材料：\n1. 录取通知书原件\n2. 身份证原件及复印件\n3. 一寸免冠照片8张\n4. 团组织关系介绍信\n\n四、注意事项：\n1. 请按时报到，如有特殊情况请提前请假\n2. 报到当天校园内有志愿者引导\n3. 家长可陪同入校，车辆请停在指定停车场\n\n祝同学们新学期愉快！'
-				},
-				{
-					id: 2,
-					title: '关于国庆节放假安排的通知',
-					time: '2026-05-18',
-					read: false,
-					content: '根据国务院办公厅通知精神，结合我校实际，现将2026年国庆节放假安排通知如下：\n\n一、放假时间：10月1日至10月7日，共7天。\n\n二、调休安排：9月27日（周日）、10月10日（周六）正常上课。\n\n三、请各学院做好学生安全教育工作。'
-				},
-				{
-					id: 3,
-					title: '图书馆暑期开放时间调整',
-					time: '2026-05-15',
-					read: true,
-					content: '图书馆暑期（7月15日-8月31日）开放时间调整如下：\n\n周一至周五：8:30-17:00\n周六、日：9:00-16:00\n\n电子资源24小时正常访问。'
-				},
-				{
-					id: 4,
-					title: '校园卡系统升级维护公告',
-					time: '2026-05-12',
-					read: true,
-					content: '校园卡系统将于5月20日22:00至5月21日6:00进行升级维护，届时校园卡消费、充值功能将暂停服务，请提前做好安排。'
-				}
-			]
+			notices: []
 		}
 	},
 	created() {
 		const windowInfo = uni.getWindowInfo()
 		this.statusBarHeight = windowInfo.statusBarHeight || 0
+		this.loadNotices()
 	},
 	onLoad(options) {
 		if (options.id) {
-			const n = this.notices.find(x => x.id === Number(options.id))
-			if (n) {
-				n.read = true
-				this.selectedNotice = n
-			}
+			this.loadNoticeDetail(Number(options.id))
 		}
 	},
 	methods: {
+		async loadNotices() {
+			try {
+				const res = await api.getNotices({ page: 1, pageSize: 20 })
+				if (res) {
+					this.notices = (res.notices || res.list || []).map(item => ({
+						id: item.id,
+						title: item.title,
+						time: item.createTime ? item.createTime.substring(0, 10) : '',
+						read: item.read,
+						content: item.content || ''
+					}))
+				}
+			} catch (e) {
+				console.error('加载通知失败', e)
+			}
+		},
+		async loadNoticeDetail(id) {
+			try {
+				const res = await api.getNoticeDetail(id)
+				if (res) {
+					this.selectedNotice = {
+						id: res.id,
+						title: res.title,
+						time: res.createTime ? res.createTime.substring(0, 10) : '',
+						content: res.content
+					}
+					const n = this.notices.find(x => x.id === id)
+					if (n) n.read = true
+				}
+			} catch (e) {
+				console.error('加载通知详情失败', e)
+			}
+		},
 		goBack() {
 			if (this.selectedNotice) {
 				this.selectedNotice = null
@@ -107,7 +110,7 @@ export default {
 		},
 		viewDetail(item) {
 			item.read = true
-			this.selectedNotice = item
+			this.loadNoticeDetail(item.id)
 		}
 	}
 }

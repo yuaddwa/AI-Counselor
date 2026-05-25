@@ -1,6 +1,8 @@
 "use strict";
 const common_vendor = require("../../../../common/vendor.js");
 const common_store_index = require("../../../../common/store/index.js");
+const common_utils_helper = require("../../../../common/utils/helper.js");
+const common_utils_request = require("../../../../common/utils/request.js");
 const EmptyState = () => "../../../../common/components/empty-state.js";
 const _sfc_main = {
   components: { EmptyState },
@@ -17,21 +19,20 @@ const _sfc_main = {
       feedbackContent: "",
       userInfo: {},
       stats: [
-        { num: 3, label: "工单" },
-        { num: 12, label: "提问" },
-        { num: 5, label: "收藏" }
+        { num: 0, label: "工单" },
+        { num: 0, label: "提问" },
+        { num: 0, label: "收藏" }
       ],
-      myTickets: [
-        { question: "关于休学申请流程咨询", status: "pending", statusText: "待受理", statusColor: "#F0AD4E", time: "05-20" },
-        { question: "宿舍空调报修", status: "processing", statusText: "处理中", statusColor: "#4A90D9", time: "05-19" },
-        { question: "奖学金申请条件", status: "completed", statusText: "已完结", statusColor: "#4CD964", time: "05-18" }
-      ]
+      myTickets: []
     };
   },
   created() {
     const windowInfo = common_vendor.index.getWindowInfo();
     this.statusBarHeight = windowInfo.statusBarHeight || 0;
-    this.userInfo = common_store_index.store.state.userInfo || { name: "学生", id: "2026001", className: "计算机2601" };
+    this.userInfo = common_store_index.store.state.userInfo || { name: "", id: "", className: "" };
+    this.loadStats();
+    this.loadNotificationSettings();
+    this.loadTickets();
   },
   methods: {
     goBack() {
@@ -42,6 +43,19 @@ const _sfc_main = {
       setTimeout(() => {
         this.avatarSpin = false;
       }, 800);
+    },
+    async loadStats() {
+      try {
+        const res = await common_utils_request.api.getUserStats();
+        if (res) {
+          this.stats = [
+            { num: res.questionCount ?? 0, label: "工单" },
+            { num: res.sessionCount ?? 0, label: "提问" },
+            { num: res.favoriteCount ?? 0, label: "收藏" }
+          ];
+        }
+      } catch (e) {
+      }
     },
     goPage(type) {
       switch (type) {
@@ -66,7 +80,7 @@ const _sfc_main = {
           break;
       }
     },
-    changePassword() {
+    async changePassword() {
       if (!this.passwordForm.oldPwd || !this.passwordForm.newPwd) {
         common_vendor.index.showToast({ title: "请填写完整", icon: "none" });
         return;
@@ -75,18 +89,55 @@ const _sfc_main = {
         common_vendor.index.showToast({ title: "两次密码不一致", icon: "none" });
         return;
       }
-      common_vendor.index.showToast({ title: "修改成功", icon: "success" });
-      this.showPassword = false;
-      this.passwordForm = { oldPwd: "", newPwd: "", confirmPwd: "" };
+      try {
+        await common_utils_request.api.updatePassword({ oldPassword: this.passwordForm.oldPwd, newPassword: this.passwordForm.newPwd, confirmPassword: this.passwordForm.confirmPwd });
+        common_vendor.index.showToast({ title: "修改成功", icon: "success" });
+        this.showPassword = false;
+        this.passwordForm = { oldPwd: "", newPwd: "", confirmPwd: "" };
+      } catch (e) {
+        common_vendor.index.showToast({ title: e.msg || "修改失败", icon: "none" });
+      }
     },
-    submitFeedback() {
+    async submitFeedback() {
       if (!this.feedbackContent.trim()) {
         common_vendor.index.showToast({ title: "请输入反馈内容", icon: "none" });
         return;
       }
-      common_vendor.index.showToast({ title: "提交成功", icon: "success" });
-      this.showFeedback = false;
-      this.feedbackContent = "";
+      try {
+        await common_utils_request.api.submitUserFeedback({ content: this.feedbackContent });
+        common_vendor.index.showToast({ title: "提交成功", icon: "success" });
+        this.showFeedback = false;
+        this.feedbackContent = "";
+      } catch (e) {
+        common_vendor.index.showToast({ title: e.msg || "提交失败", icon: "none" });
+      }
+    },
+    async loadNotificationSettings() {
+      try {
+        const res = await common_utils_request.api.getNotificationSettings();
+        this.settings = { chatNotify: !!res.chatNotify, humanNotify: !!res.humanNotify };
+      } catch (e) {
+      }
+    },
+    async loadTickets() {
+      try {
+        const res = await common_utils_request.api.getMyTickets();
+        const list = res.tickets || res.list || [];
+        this.myTickets = list.map((t) => {
+          const info = common_utils_helper.ticketStatusMap[t.status] || { text: t.status, color: "#999" };
+          return { question: t.question || t.title, status: t.status, statusText: info.text, statusColor: info.color, time: t.time || t.createdAt };
+        });
+      } catch (e) {
+      }
+    },
+    async onSettingChange(key, value) {
+      this.settings[key] = value;
+      try {
+        await common_utils_request.api.updateNotificationSettings(this.settings);
+      } catch (e) {
+        this.settings[key] = !value;
+        common_vendor.index.showToast({ title: "设置失败", icon: "none" });
+      }
     },
     handleLogout() {
       common_vendor.index.showModal({
@@ -125,46 +176,50 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
     }),
     j: common_vendor.o(($event) => $options.goPage("password")),
     k: common_vendor.o(($event) => $options.goPage("notification")),
-    l: common_vendor.o(($event) => $options.goPage("tickets")),
-    m: common_vendor.o(($event) => $options.goPage("feedback")),
-    n: common_vendor.o(($event) => $options.goPage("about")),
-    o: common_vendor.o((...args) => $options.handleLogout && $options.handleLogout(...args)),
-    p: $data.showNotification
+    l: $data.myTickets.length > 0
+  }, $data.myTickets.length > 0 ? {
+    m: common_vendor.t($data.myTickets.length)
+  } : {}, {
+    n: common_vendor.o(($event) => $options.goPage("tickets")),
+    o: common_vendor.o(($event) => $options.goPage("feedback")),
+    p: common_vendor.o(($event) => $options.goPage("about")),
+    q: common_vendor.o((...args) => $options.handleLogout && $options.handleLogout(...args)),
+    r: $data.showNotification
   }, $data.showNotification ? {
-    q: $data.settings.chatNotify,
-    r: common_vendor.o(($event) => $data.settings.chatNotify = $event.detail.value),
-    s: $data.settings.humanNotify,
-    t: common_vendor.o(($event) => $data.settings.humanNotify = $event.detail.value),
-    v: common_vendor.o(($event) => $data.showNotification = false),
-    w: common_vendor.o(() => {
+    s: $data.settings.chatNotify,
+    t: common_vendor.o(($event) => $options.onSettingChange("chatNotify", $event.detail.value)),
+    v: $data.settings.humanNotify,
+    w: common_vendor.o(($event) => $options.onSettingChange("humanNotify", $event.detail.value)),
+    x: common_vendor.o(($event) => $data.showNotification = false),
+    y: common_vendor.o(() => {
     }),
-    x: common_vendor.o(($event) => $data.showNotification = false)
+    z: common_vendor.o(($event) => $data.showNotification = false)
   } : {}, {
-    y: $data.showPassword
+    A: $data.showPassword
   }, $data.showPassword ? {
-    z: $data.passwordForm.oldPwd,
-    A: common_vendor.o(($event) => $data.passwordForm.oldPwd = $event.detail.value),
-    B: $data.passwordForm.newPwd,
-    C: common_vendor.o(($event) => $data.passwordForm.newPwd = $event.detail.value),
-    D: $data.passwordForm.confirmPwd,
-    E: common_vendor.o(($event) => $data.passwordForm.confirmPwd = $event.detail.value),
-    F: common_vendor.o((...args) => $options.changePassword && $options.changePassword(...args)),
-    G: common_vendor.o(() => {
+    B: $data.passwordForm.oldPwd,
+    C: common_vendor.o(($event) => $data.passwordForm.oldPwd = $event.detail.value),
+    D: $data.passwordForm.newPwd,
+    E: common_vendor.o(($event) => $data.passwordForm.newPwd = $event.detail.value),
+    F: $data.passwordForm.confirmPwd,
+    G: common_vendor.o(($event) => $data.passwordForm.confirmPwd = $event.detail.value),
+    H: common_vendor.o((...args) => $options.changePassword && $options.changePassword(...args)),
+    I: common_vendor.o(() => {
     }),
-    H: common_vendor.o(($event) => $data.showPassword = false)
+    J: common_vendor.o(($event) => $data.showPassword = false)
   } : {}, {
-    I: $data.showFeedback
+    K: $data.showFeedback
   }, $data.showFeedback ? {
-    J: $data.feedbackContent,
-    K: common_vendor.o(($event) => $data.feedbackContent = $event.detail.value),
-    L: common_vendor.o((...args) => $options.submitFeedback && $options.submitFeedback(...args)),
-    M: common_vendor.o(() => {
+    L: $data.feedbackContent,
+    M: common_vendor.o(($event) => $data.feedbackContent = $event.detail.value),
+    N: common_vendor.o((...args) => $options.submitFeedback && $options.submitFeedback(...args)),
+    O: common_vendor.o(() => {
     }),
-    N: common_vendor.o(($event) => $data.showFeedback = false)
+    P: common_vendor.o(($event) => $data.showFeedback = false)
   } : {}, {
-    O: $data.showTickets
+    Q: $data.showTickets
   }, $data.showTickets ? common_vendor.e({
-    P: common_vendor.f($data.myTickets, (t, i, i0) => {
+    R: common_vendor.f($data.myTickets, (t, i, i0) => {
       return {
         a: common_vendor.t(t.question),
         b: common_vendor.t(t.statusText),
@@ -173,16 +228,16 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
         e: i
       };
     }),
-    Q: $data.myTickets.length === 0
+    S: $data.myTickets.length === 0
   }, $data.myTickets.length === 0 ? {
-    R: common_vendor.p({
+    T: common_vendor.p({
       text: "暂无工单"
     })
   } : {}, {
-    S: common_vendor.o(($event) => $data.showTickets = false),
-    T: common_vendor.o(() => {
+    U: common_vendor.o(($event) => $data.showTickets = false),
+    V: common_vendor.o(() => {
     }),
-    U: common_vendor.o(($event) => $data.showTickets = false)
+    W: common_vendor.o(($event) => $data.showTickets = false)
   }) : {});
 }
 const MiniProgramPage = /* @__PURE__ */ common_vendor._export_sfc(_sfc_main, [["render", _sfc_render], ["__scopeId", "data-v-8d788b36"]]);

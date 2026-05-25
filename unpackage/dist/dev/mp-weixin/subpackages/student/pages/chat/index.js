@@ -1,5 +1,6 @@
 "use strict";
 const common_vendor = require("../../../../common/vendor.js");
+const common_utils_request = require("../../../../common/utils/request.js");
 const _sfc_main = {
   data() {
     return {
@@ -18,7 +19,11 @@ const _sfc_main = {
   onLoad(options) {
     const windowInfo = common_vendor.index.getWindowInfo();
     this.statusBarHeight = windowInfo.statusBarHeight || 0;
-    this.sessionId = Date.now().toString();
+    this.sessionId = "";
+    if (options.sessionId) {
+      this.sessionId = options.sessionId;
+      this.loadSessionDetail(options.sessionId);
+    }
     if (options.question) {
       this.inputText = decodeURIComponent(options.question);
       this.$nextTick(() => this.sendMessage());
@@ -38,7 +43,29 @@ const _sfc_main = {
         this.scrollTop = this.messages.length * 1e3;
       });
     },
-    sendMessage() {
+    async loadSessionDetail(sessionId) {
+      try {
+        const res = await common_utils_request.api.getChatDetail(sessionId);
+        if (res) {
+          this.sessionId = res.sessionId;
+          this.messages = (res.messages || []).map((msg) => ({
+            role: msg.role === "assistant" ? "ai" : msg.role,
+            content: msg.content,
+            loading: false,
+            liked: false,
+            disliked: false,
+            time: msg.timestamp ? new Date(msg.timestamp).getTime() : Date.now()
+          }));
+          if (this.messages.length > 0) {
+            this.showTransfer = true;
+          }
+          this.scrollToBottom();
+        }
+      } catch (e) {
+        common_vendor.index.__f__("error", "at subpackages/student/pages/chat/index.vue:186", "加载会话详情失败", e);
+      }
+    },
+    async sendMessage() {
       const text = this.inputText.trim();
       if (!text)
         return;
@@ -52,7 +79,7 @@ const _sfc_main = {
       const aiMsg = {
         role: "ai",
         content: "",
-        source: "新生入学指南",
+        source: "",
         loading: true,
         liked: false,
         disliked: false,
@@ -60,30 +87,32 @@ const _sfc_main = {
       };
       this.messages.push(aiMsg);
       this.scrollToBottom();
-      const reply = `关于"${text}"的问题，根据学校相关规定：
-
-1. 请携带相关证件到对应部门办理
-2. 办公时间：周一至周五 8:30-17:00
-3. 如需进一步帮助，可联系辅导员
-
-更多详情请查看办事指南或联系人工客服。`;
-      let index = 0;
-      aiMsg.loading = false;
-      const timer = setInterval(() => {
-        if (index < reply.length) {
-          aiMsg.content += reply[index];
-          index++;
-          this.scrollToBottom();
+      try {
+        const res = await common_utils_request.api.sendMessage({ message: text, sessionId: this.sessionId || void 0 });
+        if (res) {
+          this.sessionId = res.sessionId || this.sessionId;
+          aiMsg.content = res.reply || "抱歉，暂时无法回答您的问题。";
         } else {
-          clearInterval(timer);
-          this.showTransfer = true;
+          aiMsg.content = "抱歉，服务暂时不可用，请稍后再试。";
         }
-      }, 30);
+      } catch (e) {
+        common_vendor.index.__f__("error", "at subpackages/student/pages/chat/index.vue:222", "发送消息失败", e);
+        aiMsg.content = "网络异常，请检查网络后重试。";
+      }
+      aiMsg.loading = false;
+      this.showTransfer = true;
+      this.scrollToBottom();
     },
-    likeMsg(msg) {
+    async likeMsg(msg) {
       msg.liked = !msg.liked;
-      if (msg.liked)
+      if (msg.liked) {
         msg.disliked = false;
+        try {
+          const msgIndex = this.messages.indexOf(msg);
+          await common_utils_request.api.submitFeedback({ sessionId: this.sessionId, messageIndex: msgIndex, type: "like" });
+        } catch (e) {
+        }
+      }
     },
     dislikeMsg(msg) {
       msg.disliked = !msg.disliked;
@@ -93,10 +122,14 @@ const _sfc_main = {
         this.showFeedback = true;
       }
     },
-    submitFeedback() {
+    async submitFeedback() {
       if (!this.feedbackContent.trim()) {
         common_vendor.index.showToast({ title: "请输入反馈内容", icon: "none" });
         return;
+      }
+      try {
+        await common_utils_request.api.submitFeedback({ sessionId: this.sessionId, messageIndex: this.messages.indexOf(this.currentFeedbackMsg), type: "dislike" });
+      } catch (e) {
       }
       common_vendor.index.showToast({ title: "反馈已提交", icon: "success" });
       this.showFeedback = false;

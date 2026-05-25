@@ -1,4 +1,4 @@
-const BASE_URL = ''
+const BASE_URL = 'https://xhztest.xyz'
 
 function request(options) {
 	return new Promise((resolve, reject) => {
@@ -14,7 +14,12 @@ function request(options) {
 			},
 			success(res) {
 				if (res.statusCode === 200) {
-					resolve(res.data)
+					const body = res.data
+					if (body.code === 200) {
+						resolve(body.data)
+					} else {
+						reject({ code: body.code, msg: body.msg || '请求失败' })
+					}
 				} else if (res.statusCode === 401) {
 					uni.removeStorageSync('token')
 					uni.reLaunch({ url: '/subpackages/login/pages/login' })
@@ -51,8 +56,31 @@ export const api = {
 	updatePassword: (data) => request({ url: '/api/user/password', method: 'PUT', data }),
 	submitUserFeedback: (data) => request({ url: '/api/user/feedback', method: 'POST', data }),
 	getMyTickets: (params) => request({ url: '/api/user/tickets', data: params }),
+	getFavorites: (params) => request({ url: '/api/user/favorites', data: params }),
+	addFavorite: (data) => request({ url: '/api/user/favorites', method: 'POST', data }),
+	removeFavorite: (id) => request({ url: `/api/user/favorites/${id}`, method: 'DELETE' }),
 	getNotificationSettings: () => request({ url: '/api/user/notification-settings' }),
 	updateNotificationSettings: (data) => request({ url: '/api/user/notification-settings', method: 'PUT', data }),
+	uploadImage: (filePath) => {
+		return new Promise((resolve, reject) => {
+			const token = uni.getStorageSync('token') || ''
+			uni.uploadFile({
+				url: BASE_URL + '/api/upload/image',
+				filePath,
+				name: 'file',
+				header: { 'Authorization': `Bearer ${token}` },
+				success: (res) => {
+					const body = JSON.parse(res.data)
+					if (body.code === 200) {
+						resolve(body.data)
+					} else {
+						reject({ code: body.code, msg: body.msg || "上传失败" })
+					}
+				},
+				fail: reject
+			})
+		})
+	},
 	// 请假模块
 	submitLeave: (data) => request({ url: '/api/leave', method: 'POST', data }),
 	getMyLeaveRecords: (params) => request({ url: '/api/leave/my', data: params }),
@@ -70,8 +98,12 @@ export const api = {
 				name: 'file',
 				header: { 'Authorization': `Bearer ${token}` },
 				success: (res) => {
-					const data = JSON.parse(res.data)
-					resolve(data)
+					const body = JSON.parse(res.data)
+					if (body.code === 200) {
+						resolve(body.data)
+					} else {
+						reject({ code: body.code, msg: body.msg || "上传失败" })
+					}
 				},
 				fail: reject
 			})
@@ -96,29 +128,82 @@ export const api = {
 				name: 'file',
 				header: { 'Authorization': `Bearer ${token}` },
 				success: (res) => {
-					const data = JSON.parse(res.data)
-					resolve(data)
+					console.log('batchImport status:', res.statusCode, 'data:', res.data)
+					if (res.statusCode === 200) {
+						try {
+							const body = JSON.parse(res.data)
+							if (body.code === 200) {
+								resolve(body.data)
+							} else {
+								reject({ code: body.code, msg: body.msg || '导入失败' })
+							}
+						} catch(e) {
+							console.error('parse fail:', res.data)
+							reject({ code: -2, msg: '解析响应失败' })
+						}
+					} else if (res.statusCode === 401) {
+						uni.removeStorageSync('token')
+						uni.reLaunch({ url: '/subpackages/login/pages/login' })
+						reject({ code: 401, msg: '登录已过期' })
+					} else {
+						reject({ code: res.statusCode, msg: '导入失败(' + res.statusCode + ')' })
+					}
 				},
-				fail: reject
+				fail: (err) => {
+					console.error('uploadFile fail:', JSON.stringify(err))
+					reject({ code: -1, msg: '网络异常，导入失败' })
+				}
 			})
 		})
 	},
 	downloadTemplate: () => {
 		return new Promise((resolve, reject) => {
-			uni.downloadFile({
+			const token = uni.getStorageSync('token') || ''
+			const filePath = `${wx.env.USER_DATA_PATH}/template.xlsx`
+			uni.request({
 				url: BASE_URL + '/api/counselor/accounts/template',
-				success: (res) => {
+				method: 'GET',
+				responseType: 'arraybuffer',
+				header: {
+					'Authorization': `Bearer ${token}`
+				},
+				success(res) {
+					console.log('downloadTemplate status:', res.statusCode)
 					if (res.statusCode === 200) {
-						uni.openDocument({
-							filePath: res.tempFilePath,
-							success: resolve,
-							fail: reject
+						const fs = uni.getFileSystemManager()
+						fs.writeFile({
+							filePath,
+							data: res.data,
+							encoding: 'binary',
+							success() {
+								uni.openDocument({
+									filePath,
+									fileType: 'xlsx',
+									showMenu: true,
+									success: resolve,
+									fail: (err) => {
+										console.error('openDocument fail:', JSON.stringify(err))
+										reject({ code: -2, msg: '打开文件失败' })
+									}
+								})
+							},
+							fail(err) {
+								console.error('writeFile fail:', JSON.stringify(err))
+								reject({ code: -3, msg: '保存文件失败' })
+							}
 						})
+					} else if (res.statusCode === 401) {
+						uni.removeStorageSync('token')
+						uni.reLaunch({ url: '/subpackages/login/pages/login' })
+						reject({ code: 401, msg: '登录已过期' })
 					} else {
-						reject(res)
+						reject({ code: res.statusCode, msg: '下载失败(' + res.statusCode + ')' })
 					}
 				},
-				fail: reject
+				fail(err) {
+					console.error('request fail:', JSON.stringify(err))
+					reject({ code: -1, msg: '网络异常，下载失败' })
+				}
 			})
 		})
 	},
@@ -130,7 +215,52 @@ export const api = {
 	getCounselorLeaveList: (params) => request({ url: '/api/counselor/leave', data: params }),
 	approveLeave: (id, data) => request({ url: `/api/counselor/leave/${id}`, method: 'PUT', data }),
 	getCounselorSubAccounts: () => request({ url: '/api/counselor/sub-accounts' }),
-	getOperationLogs: (params) => request({ url: '/api/counselor/logs', data: params })
+	getKnowledgeCategories: () => request({ url: '/api/counselor/knowledge/categories' }),
+	getClasses: (params) => request({ url: '/api/counselor/accounts/classes', data: params }),
+	getCounselorStats: () => request({ url: '/api/counselor/stats' }),
+	getUserStats: () => request({ url: '/api/user/stats' }),
+	getOperationLogs: (params) => request({ url: '/api/counselor/logs', data: params }),
+	// 校历
+	getCalendar: () => request({ url: '/api/services/calendar' }),
+	// 成绩查询
+	getGrades: (params) => request({ url: '/api/student/grades', data: params }),
+	// 课表
+	getSchedule: (params) => request({ url: '/api/student/schedule', data: params }),
+	// 失物招领
+	getLostFound: (params) => request({ url: '/api/services/lost-found', data: params }),
+	getLostFoundDetail: (id) => request({ url: `/api/services/lost-found/${id}` }),
+	publishLostFound: (data) => request({ url: '/api/services/lost-found', method: 'POST', data }),
+	// 辅导员端 - 失物招领管理
+	getCounselorLostFound: (params) => request({ url: '/api/counselor/lost-found', data: params }),
+	deleteCounselorLostFound: (id) => request({ url: `/api/counselor/lost-found/${id}`, method: 'DELETE' }),
+	// 辅导员端 - 校历管理
+	getCounselorCalendar: () => request({ url: '/api/counselor/calendar' }),
+	addCalendarEvent: (data) => request({ url: '/api/counselor/calendar', method: 'POST', data }),
+	deleteCalendarEvent: (id) => request({ url: `/api/counselor/calendar/${id}`, method: 'DELETE' }),
+	speechToText: (filePath) => {
+		return new Promise((resolve, reject) => {
+			const token = uni.getStorageSync('token') || ''
+			uni.uploadFile({
+				url: BASE_URL + '/api/chat/speech-to-text',
+				filePath,
+				name: 'file',
+				header: { 'Authorization': `Bearer ${token}` },
+				success: (res) => {
+					const data = JSON.parse(res.data)
+					if (data.code === 200) {
+						resolve(data.data)
+					} else {
+						reject({ code: data.code, msg: data.msg || '语音识别失败' })
+					}
+				},
+				fail: reject
+			})
+		})
+	},
+	// 数字人
+	digitalHumanOffer: (data) => request({ url: "/api/digital-human/offer", method: "POST", data }),
+	digitalHumanSpeak: (data) => request({ url: "/api/digital-human/speak", method: "POST", data }),
+	digitalHumanInterrupt: (data) => request({ url: "/api/digital-human/interrupt", method: "POST", data })
 }
 
 export default request
